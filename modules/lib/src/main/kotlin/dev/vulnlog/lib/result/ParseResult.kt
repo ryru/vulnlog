@@ -4,6 +4,7 @@
 package dev.vulnlog.lib.result
 
 import dev.vulnlog.lib.model.ParseValidationVersion
+import dev.vulnlog.lib.model.SourceLocation
 import dev.vulnlog.lib.model.VulnlogFile
 import dev.vulnlog.lib.model.VulnlogFileRaw
 import java.io.File
@@ -17,6 +18,7 @@ sealed interface ParseResult {
 
     data class Error(
         val error: String,
+        val location: SourceLocation? = null,
     ) : ParseResult
 }
 

@@ -13,6 +13,7 @@ import dev.vulnlog.lib.model.VulnlogFileRaw
 import dev.vulnlog.lib.result.ParseResult
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -21,6 +22,121 @@ class YamlParserTest :
     FunSpec({
 
         val parser = YamlParser(createYamlMapper())
+
+        context("syntactic stage") {
+            test("malformed yaml returns an error with a source location") {
+                val yaml =
+                    VulnlogFileRaw(
+                        """
+                        schemaVersion: "1"
+                        project: [unterminated
+                        """.trimIndent(),
+                    )
+
+                val error = parser.parse(yaml).shouldBeInstanceOf<ParseResult.Error>()
+                error.location.shouldNotBeNull().line shouldBe 2
+            }
+
+            test("missing colon points at the offending key, not where the scanner choked") {
+                val yaml =
+                    VulnlogFileRaw(
+                        """
+                        schemaVersion: "1"
+                        vulnerabilities
+                          - id: CVE-2021-1
+                        """.trimIndent(),
+                    )
+
+                // `vulnerabilities` (line 2) is missing its colon; the scanner only fails on line 3.
+                val error = parser.parse(yaml).shouldBeInstanceOf<ParseResult.Error>()
+                error.location.shouldNotBeNull().line shouldBe 2
+            }
+
+            test("stray key is reported as an unknown field at its own line") {
+                val yaml =
+                    VulnlogFileRaw(
+                        """
+                        schemaVersion: "1"
+                        project:
+                          organization: acme
+                          name: widget
+                          author: alice
+                        releases: []
+                        vulnerabilities: []
+                        bogus: 1
+                        """.trimIndent(),
+                    )
+
+                val error = parser.parse(yaml).shouldBeInstanceOf<ParseResult.Error>()
+                error.error shouldContain "Unknown field 'bogus'"
+                error.error shouldContain "'vulnerabilities'"
+                error.location.shouldNotBeNull().line shouldBe 8
+            }
+
+            test("misspelling a required key reports the missing required field") {
+                val yaml =
+                    VulnlogFileRaw(
+                        """
+                        schemaVersion: "1"
+                        project:
+                          organization: acme
+                          name: widget
+                          author: alice
+                        releases: []
+                        vulnerabiities: []
+                        """.trimIndent(),
+                    )
+
+                parser
+                    .parse(yaml)
+                    .shouldBeInstanceOf<ParseResult.Error>()
+                    .error shouldContain "Missing required field 'vulnerabilities'"
+            }
+
+            test("missing field in a list entry points at that entry, not the next one") {
+                val yaml =
+                    VulnlogFileRaw(
+                        """
+                        schemaVersion: "1"
+                        project:
+                          organization: acme
+                          name: widget
+                          author: alice
+                        releases: []
+                        vulnerabilities:
+                          - id: CVE-0001-001
+                            releases: []
+                          - id: CVE-0002-002
+                            releases: []
+                            packages: []
+                            reports: []
+                        """.trimIndent(),
+                    )
+
+                val error = parser.parse(yaml).shouldBeInstanceOf<ParseResult.Error>()
+                error.error shouldContain "Missing required field 'packages'"
+                // The CVE-0001-001 entry is on line 8; the error must not point at the next entry.
+                error.location.shouldNotBeNull().line shouldBe 8
+            }
+
+            test("structural binding error carries a source location") {
+                val yaml =
+                    VulnlogFileRaw(
+                        """
+                        schemaVersion: "1"
+                        project: "not an object"
+                        releases: []
+                        vulnerabilities: []
+                        """.trimIndent(),
+                    )
+
+                parser
+                    .parse(yaml)
+                    .shouldBeInstanceOf<ParseResult.Error>()
+                    .location
+                    .shouldNotBeNull()
+            }
+        }
 
         context("schema version detection") {
             test("missing schemaVersion field returns an error") {

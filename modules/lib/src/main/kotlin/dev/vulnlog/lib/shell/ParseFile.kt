@@ -30,12 +30,14 @@ fun parseInputs(inputs: List<FileInputOption>): ParseResults {
 
 /**
  * Renders each failure in [parseResults] as a two-line block: a header naming the file and the
- * underlying parse error. Centralises the message format so all surfaces (CLI, Gradle) report
- * parse failures identically.
+ * underlying parse error, prefixed with an editor-friendly `file:line:column` when the parser
+ * pinned the problem to a position. Centralises the message format so all surfaces (CLI, Gradle)
+ * report parse failures identically.
  */
 fun renderParseFailures(parseResults: ParseResults): List<String> =
     parseResults.failure.map { (file, result) ->
-        "Parsing of ${file.name} failed:\n${result.error}"
+        val location = result.location?.let { "${file.name}:$it: " } ?: ""
+        "Parsing of ${file.name} failed:\n$location${result.error}"
     }
 
 private fun parseInputOptions(
