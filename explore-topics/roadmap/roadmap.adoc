@@ -1,0 +1,614 @@
+= Vulnlog Roadmap
+:revdate: 2026-07-04
+:toc:
+:toc-title: Contents
+
+Vulnlog records a vulnerability analysis once and communicates the verdict to every audience that needs it:
+the team, the scanners, the stakeholders, and the automation around them. This document describes where the
+project stands, how the field around it is moving, and what we want to build next.
+
+This is a living document, not a commitment. Horizons are directional, priorities shift with feedback, and
+every theme below is open for debate in the issue tracker. If something here would help you, or strikes you
+as wrong, please open an issue and say so.
+
+== Where Vulnlog stands
+
+The 0.15 line delivers a complete authoring and fan-out loop around a single YAML file:
+
+* A schema-validated YAML format for findings, analyses, verdicts, resolutions, and suppressions, scoped to
+  releases, with typed vulnerability identifiers (CVE, GHSA, RUSTSEC, Snyk) and package URLs.
+* CLI commands to scaffold, validate, canonically format, and edit the file (`init`, `validate`, `fmt`,
+  `modify add`, `modify copy`).
+* Suppression generation with native writers for Trivy, Snyk, and cargo-audit, a generic JSON format for
+  every other reporter, expiring suppressions, and filtering by release, tag, and reporter.
+* An HTML report for humans and a text summary for terminals, both derived from the same verdict data.
+* Distribution as native binaries, Docker image, Homebrew formula, JVM application, and a Gradle plugin,
+  designed for CI with a performance budget of under one second per command.
+
+That is a solid foundation, and deliberately only half of the product. Today Vulnlog trusts people to carry
+findings from the scanner into the file, and to notice when the file and the scan results drift apart. The
+other half, closing that loop and speaking the exchange formats the industry is settling on, is what this
+roadmap is about.
+
+== How the field is moving
+
+Five currents shape the plan.
+
+=== Suppression fragmentation keeps growing
+
+Every scanner ships its own ignore format: `.trivyignore.yaml`, `.snyk`, `.grype.yaml`, `osv-scanner.toml`,
+Dependency-Check suppression XML, and many more. Running two scanners means maintaining the same decision in
+two incompatible files, and recent surveys count around forty tools with private policy dialects (see
+https://nesbitt.io/2026/03/19/the-fragmented-world-of-dependency-policy.html[The fragmented world of
+dependency policy]). This is the pain Vulnlog was built for, and it is getting worse. The more formats
+proliferate, the more valuable one canonical decision record with faithful per-tool writers becomes.
+
+=== VEX is becoming the exchange layer
+
+Vulnerability Exploitability eXchange documents are how verdicts travel between organizations. Trivy consumes
+OpenVEX and CSAF natively, including from published VEX repositories, and Grype consumes OpenVEX
+(https://trivy.dev/docs/latest/supply-chain/vex/file/[Trivy VEX documentation]). CSAF dominates the regulated
+and enterprise world, OpenVEX the open source and container world, and CycloneDX carries VEX inside the SBOM
+ecosystem (https://openssf.org/blog/2026/01/08/signal-in-the-noise-an-industry-wide-perspective-on-the-state-of-vex/[OpenSSF,
+Signal in the Noise, January 2026]). The widely named blockers are discovery, trust, and above all authoring
+friction. Vulnlog's YAML already captures verdicts and justifications in VEX vocabulary, so Vulnlog can become
+one of the lowest-friction VEX producers available. Longer term, scanner-native VEX consumption may replace
+scanner-specific ignore files entirely; Vulnlog should lead that transition rather than defend the bridge.
+
+=== The EU Cyber Resilience Act sets the clock
+
+The CRA (Regulation (EU) 2024/2847) entered into force on 2024-12-10 and applies in stages
+(https://digital-strategy.ec.europa.eu/en/policies/cra-reporting[European Commission, CRA reporting
+obligations]):
+
+[IMPORTANT]
+====
+* From *2026-09-11*: manufacturers must report actively exploited vulnerabilities and severe incidents via
+  the ENISA Single Reporting Platform, with an early warning within 24 hours, a notification within 72 hours,
+  and a final report within 14 days or one month. Open source software stewards report actively exploited
+  vulnerabilities from the same date.
+* From *2027-12-11*: the full obligations apply, including the vulnerability handling requirements of
+  Annex I Part II: identify and document vulnerabilities including an SBOM, remediate without delay, test
+  regularly, publicly disclose fixed vulnerabilities, run a coordinated vulnerability disclosure policy, and
+  provide a contact address for reports.
+====
+
+National guidance is already concrete: the German BSI recommends CycloneDX or SPDX for SBOMs (TR-03183-2) and
+CSAF for security advisories and VEX (TR-03183-3). A structured, reviewable, exportable vulnerability decision
+record is exactly the evidence the CRA asks manufacturers to keep. Vulnlog will not make anyone compliant by
+itself, but it can carry a large share of the documentation burden.
+
+=== Vulnerability identifiers are multiplying
+
+The CVE program went through a funding scare in 2025, the EU launched the EUVD with its own identifiers and an
+exploitation status field, and CIRCL launched the decentralized GCVE scheme in January 2026. Add GHSA, OSV
+ecosystem identifiers, and scanner-private identifiers, and the same finding now arrives under several names.
+Vulnlog's typed identifiers and alias lists already model this; the alias graph should become a first-class
+strength.
+
+=== AI triage is coming, with or without guardrails
+
+Vendors ship agents that triage findings and assess reachability. The failure mode is plausible-sounding
+verdicts with no audit trail. Vulnlog's opportunity is to be the guardrail: a structured, git-reviewed decision
+record that an agent can propose into and a human approves in a pull request. AI-assisted triage only works
+when the record of who decided what, and why, is durable. That record is Vulnlog.
+
+== North star
+
+Vulnlog is the vulnerability decision record: what architecture decision records are to design, Vulnlog is to
+vulnerability triage. One analysis, recorded once, reviewed in a pull request, communicated to every audience
+in the form each one understands.
+
+The principles behind every feature:
+
+Git is the database::
+The repository holds the record, the history, and the review workflow. No server, no SaaS, no lock-in.
+CI is the enforcement point::
+Verdicts are only trustworthy when CI fails on drift between the record and reality.
+The core stays deterministic::
+Same input, same output, always. Network access only ever behind explicit flags and inputs.
+Standards out, not in::
+Vulnlog writes OpenVEX, CycloneDX, and CSAF rather than asking the world to parse Vulnlog YAML.
+The file stays minimal::
+Nothing goes into the YAML that the internet can look up. The file records decisions; public data such as
+CVSS vectors, CWEs, advisory links, and fix versions is joined at generation time.
+The human owns the verdict::
+Tools and agents propose; a person decides, and the file records who and why.
+
+== Themes
+
+=== Theme 1: Close the loop with scanners
+
+The largest gap today: findings enter the file by hand, and nothing warns when the file no longer matches the
+scan. Our own dogfood file shows the cost, with repeated hand-typed entries per scanner and per identifier.
+
+* `vulnlog import` (working name): read scanner output and create or update entries as `under
+  investigation` stubs with reporter, date, identifiers, and package URLs prefilled. SARIF first, as the
+  one export nearly every scanner offers, with native JSON parsers (Trivy, Grype, Snyk, osv-scanner) where
+  SARIF drops data such as purls. Idempotent, so it can run on every scan.
+* `vulnlog check` (working name): the drift gate. Fail CI when a scanner reports a finding the file does not
+  know, and warn when the file carries entries no scanner reports anymore. This turns "single source of
+  truth" from a convention into a guarantee.
+* Applicability checking against lockfiles and SBOMs: read what the product actually ships (Gradle, npm,
+  pnpm, Cargo, Go, Python, or Composer lockfiles, or a CycloneDX SBOM) and flag entries whose recorded
+  package no longer matches: upgraded, removed, or never present. Fully offline; whether a newer version is
+  still affected is an enrichment question, and the two answers compose.
+* Guided triage: an interactive mode that walks through unanalyzed findings one by one and writes canonical
+  entries.
+
+=== Theme 2: Speak the standards
+
+The VEX design work on the `explore-vex` branch defines the writer architecture and the YAML gaps.
+
+* `vulnlog vex` with an OpenVEX writer first, the format that maps one to one onto existing verdicts.
+* CycloneDX VEX as the second writer, for SBOM-centric consumers.
+* CSAF VEX generation once the first regulated adopters ask for it, which the CRA makes a matter of time, and
+  BSI TR-03183-3 already recommends. Full CSAF publishing depth (provider metadata, hashes, signatures) grows
+  separately and later.
+* Schema additions only for what the file alone can express: `response` and `workaround` (both decisions),
+  plus project contact and URLs. Deliberately rejected: `cvss`, `cwes`, and advisory links, which public
+  databases already know; writers join them from enrichment at generation time (Theme 4). The file stays
+  minimal.
+* Advisory formats for projects that publish their own vulnerabilities: the CSAF security advisory profile,
+  CVE JSON 5.1 records ready for CNA submission, and the OSV schema for ecosystem databases. Relevant the
+  day a project becomes its own CNA.
+* SARIF output carrying verdicts and suppressions, so code scanning UIs show triage state instead of raw
+  findings.
+* New identifier types: EUVD, GCVE, and OSV ecosystem identifiers alongside CVE, GHSA, RUSTSEC, and Snyk.
+* Publishing guidance and tooling: VEX at a well-known URL, compatibility with the Trivy VEX repository
+  layout, and later signed VEX documents and in-toto attestations attached to release artifacts.
+
+=== Theme 3: CRA readiness
+
+Make Vulnlog the natural way for a small or mid-sized manufacturer, or an open source steward, to carry the
+CRA vulnerability handling documentation burden.
+
+[cols="4,4,5"]
+|===
+| CRA requirement | Vulnlog today | Planned
+
+| Identify and document vulnerabilities, including components (Annex I Part II 1)
+| The Vulnlog file is this documentation; `validate` keeps it consistent
+| `import` and `check` keep it complete; cross-check entries against an SBOM
+
+| Remediate without delay (Annex I Part II 2)
+| Resolution tracking, derived states, expiring suppressions
+| Remediation age metrics and configurable SLA checks that fail CI
+
+| Regular tests and reviews (Annex I Part II 3)
+| CI-first design, suppression expiry forces re-review
+| Point-in-time posture reports reconstructed from git history
+
+| Publicly disclose fixed vulnerabilities (Annex I Part II 4)
+| HTML report lists resolutions
+| Security changelog generation per release, human-readable advisory pages, CSAF advisories
+
+| Coordinated vulnerability disclosure policy and contact (Annex I Part II 5 and 6)
+| Not covered
+| Scaffolding: CVD policy template, `SECURITY.md`, and `security.txt` (RFC 9116) generation from project
+  metadata
+
+| Report actively exploited vulnerabilities from 2026-09-11 (Article 14)
+| Not covered
+| An `exploited` marker on entries, KEV and EUVD exploitation status awareness during enrichment, a deadline
+  checklist, and an export of the facts a Single Reporting Platform submission needs
+
+| Steward duties (Article 24)
+| Not covered
+| A steward mode: lightweight policy templates and exportable security documentation for open source projects
+
+| Technical documentation on request (market surveillance)
+| Git history holds every decision
+| An evidence bundle export: report, VEX, history summary, and metrics in one archive
+|===
+
+Distribution of security updates and similar product-side duties stay out of scope; Vulnlog documents
+decisions, it does not ship your patches.
+
+=== Theme 4: Richer decisions
+
+* Two kinds of severity, kept apart: the `severity` field in the YAML is the project's own assessment, a
+  decision, and stays. Scores the internet knows (CVSS vectors, CWEs, EPSS probabilities, KEV and EUVD
+  exploitation status) are never written into the file; outputs join them at generation time.
+* The enrichment cache: a small container that mirrors and caches public vulnerability records (OSV, GHSA,
+  NVD, EUVD, KEV, EPSS) close to the pipeline, resolves any recorded identifier or alias, and answers
+  lookups from the CLI. CI stops hammering public APIs, air-gapped setups mirror once and serve locally,
+  and exploitation status changes feed the Article 14 workflow. The cache is open source, because
+  single-team report quality sits inside the covenant line; a hosted, SLA-backed instance is the
+  enterprise convenience.
+* Reproducibility preserved: enrichment answers pin to a dated snapshot, so the same file and the same
+  snapshot always produce the same output. Without a snapshot or a cache, outputs simply omit enrichment,
+  exactly as today.
+* Severity and analysis provenance: record where a rating came from and whether a human, a tool, or a human
+  approving a tool wrote the analysis.
+* Decision support: an optional, SSVC-inspired policy layer that suggests triage priority from exploitation
+  status, severity, and exposure. Suggestion only; the verdict stays human.
+
+=== Theme 5: Scale and ergonomics
+
+* Grouping: one analysis shared by several related findings (the same advisory family or the same package and
+  version) without copy-paste. Our own file carries eight near-identical Jackson entries today; that is the
+  bug report.
+* Multi-file support: includes or a directory convention, so large projects can split by component while
+  commands see one logical file. An `archive` command moves entries of end-of-life releases out of the
+  working set.
+* Report v2: views shaped by the questions people bring, not only by audience. The patch plan ("we cut a
+  bugfix release now, what must go in?"): open entries targeting the release, grouped by package, with fix
+  versions joined from enrichment. The offender list: dependencies ranked by open findings and severity,
+  by purl. Plus audience views (engineer, product owner, customer) and a redesign of the visual language.
+* `vulnlog diff`: the security changelog between two releases, ready to paste into release notes. This also
+  serves CRA disclosure duties.
+* A badge endpoint: a small JSON output suitable for a README badge showing the count of open findings.
+* Aggregation: merge several Vulnlog files into one report for organizations with many products.
+
+=== Theme 6: Everywhere engineers work
+
+* An official GitHub Action wrapping the Docker CLI: validate, check, suppress, and report in a few lines of
+  workflow YAML. A GitLab CI template follows.
+* A pre-commit hook for `fmt` and `validate`.
+* Release gating: `vulnlog gate` (working name) fails a release pipeline when open findings above a threshold
+  target the release.
+* Dependency-update integration: when a Renovate or Dependabot pull request bumps a package with an open
+  entry, help record the resolution automatically.
+* More native suppression writers where demand shows up (osv-scanner, Dependency-Check, npm audit ecosystem),
+  balanced against the strategic bet that VEX replaces most of them.
+
+=== Theme 7: AI-assisted triage, with guardrails
+
+The long-standing teaser in the README, made concrete:
+
+* Propose, never decide: an agent drafts an entry with analysis, suggested verdict, justification, and cited
+  evidence; a human reviews the pull request. The schema records the provenance.
+* An MCP server exposing safe read and propose operations over the Vulnlog file, so any assistant can work
+  with the record without inventing YAML.
+* Evidence fields: structured references (advisory links, code locations, reachability notes) so a reviewer
+  can verify a proposal instead of trusting it.
+
+== Horizons
+
+Horizons are anchored to the CRA dates rather than to version numbers.
+
+=== Now, before 2026-09-11
+
+* `vulnlog vex` with the OpenVEX writer.
+* `vulnlog import` for Trivy, Grype, Snyk, and osv-scanner output.
+* `vulnlog check` drift gate for CI.
+* The `exploited` marker and the first Article 14 aid (deadline checklist output).
+* The official GitHub Action.
+* The decision-only schema additions (response, workaround, project contact) and the new identifier types
+  (EUVD, GCVE, OSV).
+
+=== Next, toward 2027-12-11
+
+* CycloneDX VEX writer and VEX publishing guidance, then a first CSAF VEX cut.
+* Security changelog (`diff`), advisory page generation, and release gating.
+* The enrichment cache container (OSV, GHSA, NVD, EUVD, KEV, EPSS) with severity provenance.
+* CVD scaffolding: policy template, `SECURITY.md`, `security.txt`.
+* Grouping, multi-file support, archive, and report v2.
+* Renovate and Dependabot resolution capture, GitLab CI template, pre-commit hook.
+
+=== Later
+
+* CSAF publishing depth: provider metadata, hashes, signatures.
+* Signed VEX and attestation of release artifacts.
+* Organization-level aggregation and fleet reporting.
+* Metrics and point-in-time posture reconstruction from git history, evidence bundle export.
+* AI-assisted triage with recorded provenance, and the MCP server.
+* SSVC-inspired decision support.
+
+== Non-goals
+
+* Vulnlog is not a scanner. It records and communicates decisions about findings; Trivy, Snyk, Grype, and
+  friends find them.
+* Vulnlog is not a vulnerability database. It stores your analysis, not mirrored advisory data; enrichment
+  annotates, it does not replicate.
+* The Vulnlog file is always the source of truth. Any server, including the possible commercial service
+  explored below, is a lens over the files in git, never a database that replaces them. Organizations that
+  want a central SBOM inventory with a web UI should look at OWASP Dependency-Track; the two complement
+  each other.
+* Vulnlog is not a compliance certificate. It produces evidence and automation for CRA duties; it does not
+  provide legal assessments.
+* No YAML dialects. The canonical format stays the only format, and schema evolution stays additive within a
+  major version, with migration tooling when a v2 ever becomes necessary.
+
+== Vulnlog as an enterprise service
+
+The non-goals above protect the tool. They also draw the outline of a service that can live beside it
+without betraying it: a single team in a single repository gets everything it needs from the CLI, free,
+forever, while the questions organizations ask span repositories, deadlines, external feeds, and the public
+internet. That layer is worth money. This section explores what such a service would be. Nothing here is
+decided, and none of it changes what the open source tool does.
+
+=== The covenant
+
+Any commercial layer stands on three public promises, stated before the first invoice:
+
+* The YAML schema and the CLI stay Apache-2.0, complete, and sufficient. Nothing a single product team
+  needs moves behind a paywall.
+* The server never becomes the source of truth. It reads files from git, and the write path is always a
+  pull request. Turning the server off loses convenience, not data.
+* Everything the server shows is exportable, and everything it publishes is a standard format (OpenVEX,
+  CycloneDX, CSAF). No lock-in, by construction.
+
+The dividing line for features follows from the promises: single repository, single team, free and open
+source. Anything spanning repositories, organizations, time, or the public internet may be paid.
+
+=== What enterprises need
+
+Each job maps to a question someone senior asks under pressure:
+
+[cols="4,3,5"]
+|===
+| Question | Who asks | What answers it
+
+| Are we affected by CVE-X, anywhere, right now?
+| The CISO, during a Log4Shell-style fire drill
+| Cross-fleet search over every Vulnlog file by identifier, alias, or purl
+
+| What is untriaged, and what is breaching our SLA?
+| The security lead, every week
+| An organization dashboard with entry age and policy thresholds
+
+| Did anything we recorded become actively exploited?
+| Whoever owns CRA Article 14 duties
+| Feed watching (KEV, EUVD exploitation status) diffed against recorded entries, with the 24h/72h/14d clock
+
+| Prove your vulnerability handling process
+| An auditor, a market surveillance authority, a large customer
+| An evidence bundle per product: decisions, timestamps, git history, reports
+
+| Publish our advisories and VEX correctly
+| The product security team
+| A hosted pipeline from merged verdict to signed CSAF and VEX at the vendor's domain
+|===
+
+Beside the jobs stand the procurement table stakes: SSO and SCIM, roles and permissions, audit logs, a
+support contract, evidence of the vendor's own security posture, EU data residency, and a self-hosted
+option. Vulnlog's natural buyers (EU manufacturers, OT and embedded vendors, regulated industries) are
+exactly the companies that will not send their vulnerability posture to somebody else's cloud. That pushes
+the model toward a licensed self-hosted server first and hosted offerings later, which also matches what a
+very small team can operate responsibly.
+
+=== The wedges
+
+* The fleet lens: a GitHub or GitLab App indexes every Vulnlog file in the organization, renders the
+  dashboard, answers the fire-drill question, and sends digests. Low risk and an obvious demo, though a
+  dashboard alone is a feature rather than a product.
+* Watch and clock: match new advisories and exploitation status changes against recorded packages and
+  entries, alert the owning team, and track Article 14 deadlines. This wedge has a date attached: the
+  reporting obligation lands on 2026-09-11 and turns Vulnlog from a record of the past into an early
+  warning system.
+* Publishing: from merged verdict in git to published, signed OpenVEX and CSAF with provider metadata and a
+  ROLIE feed at the customer's domain, plus a human-readable trust page. Managed CSAF hosting is already
+  sold as a service, which validates the category; the differentiation is a pipeline that starts at the
+  decision record, not at a hand-authored JSON file.
+
+* The hosted enrichment cache: the open source container from Theme 4, run and kept current as a managed,
+  SLA-backed endpoint. The smallest wedge on its own, and the natural bundle inside the other three.
+
+The service does not compete on SBOM inventory and analysis. OWASP Dependency-Track owns that space, free
+and at scale. The service competes on the decision record, the evidence, and the publishing.
+
+=== The MVP: a read-only fleet lens
+
+Working name Vulnlog Fleet, combining the first two wedges, strictly read-only:
+
+* Onboarding through a GitHub App; the service indexes every Vulnlog file in the organization, and
+  permissions mirror repository access, so there is no roles matrix to build yet.
+* A dashboard with open, untriaged, and exploited counts by product, entry age, and SLA thresholds, plus
+  cross-fleet search by identifier, alias, or purl.
+* An enrichment overlay from KEV, EPSS, and EUVD, with notifications when a recorded entry's exploitation
+  status changes or a new advisory matches a recorded package. Backed by a hosted instance of the
+  enrichment cache, so design partners get fresh, resolved data with zero setup.
+* The CRA aid: the Article 14 deadline clock on exploited entries and an export of the facts a Single
+  Reporting Platform submission needs.
+* Shipped as one container plus a database, activated by a license key, self-hosted; optionally EU-hosted
+  as a single tenant for design partners.
+
+Deliberately excluded from the MVP: any write path (git is the write path), ticket system sync, SAML and
+SCIM, publishing, and AI. Each is an evolution stage, not a starting point. Read-only first keeps the
+attack surface small, avoids any argument about data ownership, and stays honest about where truth lives.
+
+The MVP has open source prerequisites: `import` and `check` from Theme 1 must exist first, because
+aggregating stale files produces a confident dashboard of fiction. The drift gate is what makes a paid
+dashboard trustworthy.
+
+Pricing follows the CRA's mental model: per product with digital elements, not per seat, because the
+product is the unit customers already think in and value scales with products, not headcount. Free for
+open source projects and the smallest setups, a team tier priced per product per month, and an annual
+self-host license with support for enterprises. Design partners validate the numbers before they become
+public.
+
+=== Service horizons
+
+* Stage 0, the open source primitives: Theme 1, `vex`, aggregation, and evidence export. These are roadmap
+  items anyway, and they are the foundation the service reads from.
+* Stage 1, design partners, then the MVP: five to eight companies with CRA exposure, recruited before the
+  first line of server code. No commitments, no build.
+* Stage 2, publishing, timed before 2027-12-11: hosted VEX endpoints, the CSAF trusted provider pipeline
+  with signing, security changelog pages, support period tracking, and evidence bundles. Demand peaks when
+  the full Annex I obligations apply.
+* Stage 3, governance and workflow: SAML and SCIM, roles, audit hardening, approval flows, ticket system
+  integration, and an API. Policy stays as code in git; the server enforces it across the organization.
+* Stage 4, the network: ingest suppliers' VEX into the intake and publish verdicts downstream, so Vulnlog
+  instances form a supply chain of verdicts.
+
+=== Service risks
+
+* The covenant is the product. The moment the community suspects features are held hostage, the goodwill
+  that differentiates Vulnlog evaporates.
+* Operating capacity. A service holding other companies' vulnerability posture means on-call duty and
+  security questionnaires as a lifestyle. Self-host first defers most of that; publishing brings it back.
+  Realistically, Stage 2 requires a second person and a legal entity.
+* Chicken and egg. The service is only valuable to organizations with many Vulnlog files. Investment gates
+  on adoption signals: inbound requests for a dashboard, organizations visibly committing several files,
+  and design partners willing to pre-commit.
+* The squeeze. Application security platforms bundle triage records, Dependency-Track is free, and the code
+  forges could ship native triage. The durable moat is the combination of git-native record, standards-out
+  publishing, and CRA evidence; every single piece on its own is copyable.
+* The fork in the road. A foundation route maximizes adoption and hands the hosting revenue to third
+  parties; the open-core route keeps the revenue and costs some goodwill. The two exclude each other, and
+  the choice comes before Stage 1, not after.
+
+== Funding the work
+
+The goal is plain: enough recurring revenue that at least one maintainer works on Vulnlog full time. No
+single stream reaches that alone in the first years, so the plan is several streams with different timing
+and ceilings, reviewed honestly at fixed dates. The enterprise service above is the largest bet; it is also
+the slowest. These are the others.
+
+One value sorts everything here: the goal is an open source tool that users love, with revenue as the means
+to buy maintainer time. The git-based YAML core always stays, every service is an addition, adoption and
+trust come before money, and there is no version of this plan that hurries the project toward the first
+buyer or sells its neutrality.
+
+=== Revenue streams
+
+[cols="3,6,2,2"]
+|===
+| Stream | Shape | Starts | Ceiling
+
+| Enterprise service
+| Licenses and subscriptions per product, as explored above
+| Slow
+| High
+
+| Paid support
+| Support contracts with response times, upgrade help, and onboarding packages for teams introducing
+  Vulnlog
+| Fast
+| Medium
+
+| Sponsored features
+| A vendor pays for a native writer or an integration; the result ships open source for everyone. Money
+  buys priority, never direction: sponsored work must fit the public roadmap
+| Fast
+| Low
+
+| Training and workshops
+| A CRA vulnerability-handling workshop for engineering teams, conference tutorials, later a self-paced
+  course. Content amortizes across deliveries
+| Fast
+| Medium
+
+| Grants
+| Public and philanthropic funding for open infrastructure, detailed below
+| Medium
+| Medium
+
+| Corporate sponsorship
+| GitHub Sponsors and OpenCollective tiers for companies, with website placement and prioritized issue
+  triage under a published policy
+| Fast
+| Low
+
+| Marketplace distribution
+| The watch or fleet app as a paid GitHub App with billing handled by the marketplace; low-friction
+  distribution for the service
+| Medium
+| Medium
+
+| Partnerships and OEM
+| Scanner vendors or CSAF hosting providers integrate Vulnlog and pay for integration maintenance and
+  guaranteed schema compatibility
+| Slow
+| Medium
+|===
+
+Services revenue (support, workshops, sponsored features) trades hours for money. It funds the road to
+product revenue, and it also eats the road: capped at roughly half the working time, or the product never
+ships.
+
+=== Potential partners and sponsors
+
+Partnering beats building alone in a field this interconnected. Groups that gain something concrete when
+Vulnlog succeeds, and what a partnership could look like:
+
+* Standards bodies and foundations. The Eclipse Foundation's Open Regulatory Compliance Working Group is
+  where open source meets the CRA; participating there puts Vulnlog in front of the stewards and
+  manufacturers working on compliance. The OpenSSF working groups on vulnerability disclosure and SBOM are
+  the venue of the VEX ecosystem. A seat in the OASIS CSAF technical committee as an implementer builds
+  credibility and opens the Sovereign Tech Standards door. The Kotlin Foundation runs a grants program, and
+  Vulnlog is a flagship-grade Kotlin CLI.
+* Scanner and data vendors. Aqua (Trivy) and Anchore (Grype, Syft) benefit from every VEX document Vulnlog
+  produces, because consuming verdicts makes their scanners quieter. Google's OSV team runs the natural
+  enrichment backbone (OSV.dev, deps.dev). GitHub is the distribution channel: the Advisory Database for
+  data, the Marketplace for the Action and the App.
+* SBOM and supply chain platforms. Chainguard stewards OpenVEX and shares the adoption interest. SBOM
+  platform vendors need exactly the triage layer Vulnlog provides and rarely have a git-native answer.
+* The CSAF and CRA ecosystem. Hosted CSAF providers such as TrustSource and CERT@VDE host advisories but do
+  not author them; Vulnlog as the authoring front end that feeds their hosting is a partnership, not a
+  competition. Certification bodies and CRA consultancies need tooling they can recommend to clients.
+* Patrons and employers. Manufacturers with large CRA exposure and established open source programs
+  (Siemens, Bosch, ABB, and Swiss product companies of the u-blox and Landis+Gyr kind) are plausible
+  sponsors, or employers of a product security engineer with contracted Vulnlog time. That model funds the
+  work while adoption grows, provided roadmap influence stays transparent and public.
+
+One caution binds all of it: neutrality across scanners and formats is Vulnlog's core asset. An exclusive
+arrangement with one scanner vendor devalues every other writer. Partnerships should widen the ecosystem,
+never fence it.
+
+=== Grants worth applying for
+
+* NLnet NGI Zero Commons Fund: 5,000 to 50,000 EUR for individuals and organizations of any type, rolling
+  calls with a deadline every two months (the next on 2026-08-01). Vulnlog's CRA relevance makes for a
+  strong European dimension.
+* Sovereign Tech Fund: invests in open digital base technologies, applications from 50,000 EUR upward,
+  without geographic restriction. Vulnerability handling infrastructure in the CRA era is squarely in
+  scope.
+* Sovereign Tech Fellowship: pays maintainers directly through part-time contracts; cohorts open roughly
+  yearly, and the 2026 round closed in April, so the target is the next one.
+* Sovereign Tech Standards: pays maintainers whose work relates to standardization. If Vulnlog joins the
+  OASIS CSAF work as an implementer, this becomes a plausible fit.
+* Worth watching: GitHub Accelerator cohorts and OpenSSF funding initiatives.
+
+Grant applications cost real time and arrive with deliverables attached. One good grant funds a year of
+focused work on exactly the infrastructure themes (VEX, CSAF, the drift gate) this roadmap already
+contains, which makes the applications honest.
+
+=== A plausible path to full time
+
+* Phase A, through 2026: ship the Now horizon nights and weekends. Apply for one grant (the NGI Zero
+  deadline on 2026-08-01 is the nearest), open sponsor tiers, run the first paid workshop, and start
+  design partner conversations. Target: fund one day per week.
+* Phase B, 2027: the CRA year. Support contracts and workshops carry a part-time schedule, design partners
+  pay for MVP pilots, and a second grant application goes out. Target: half of the working time funded by
+  Vulnlog.
+* Phase C, 2028: service licenses and subscriptions carry the base load, and services and training become
+  optional accelerators. Target: full time.
+
+Each phase ends with a review against a written break-even number. If a phase misses badly, the honest
+options are staying part-time, handing the service to a partner company, or choosing the foundation route
+and optimizing for adoption instead of revenue. Writing that down now makes the decision easier later.
+
+== Open questions
+
+Honest unknowns, input welcome:
+
+* Sequencing: OpenVEX first delivers the strategic flag, `import` and `check` deliver daily value and keep
+  files honest. Both are "Now"; which ships first if capacity forces a choice?
+* CSAF depth: generation is tractable, but full trusted-provider distribution is a heavy lift. Where is the
+  line a CLI tool should not cross?
+* Product identity: releases carry purls and tags scope products informally. Do CycloneDX and CSAF outputs
+  need a first-class component or product model in the schema?
+* Monorepos and multi-product repositories: is multi-file support enough, or does the schema need to model
+  several products in one file?
+* Enrichment: which sources come first (OSV, GHSA, NVD, EUVD), and how do pinned snapshots keep outputs
+  reproducible without going stale?
+* Applicability checking: which lockfile ecosystems come first, and is a CycloneDX SBOM the more general
+  input anyway?
+* AI boundaries: is propose-only too conservative, or exactly right? What evidence must a proposal carry to
+  be reviewable?
+* The service: which wedge ships first, and under which license does the server code live (Apache-2.0,
+  source-available, or closed)? The covenant needs a published home before any of it starts.
+* Open core or foundation: the funding plan assumes open core; the foundation route would maximize adoption
+  and hand hosting revenue to others. Which failure mode is acceptable?
+* Funding reviews: which dates and which numbers decide whether Phase A and Phase B of the path to full
+  time are on track?
+
+== Have your say
+
+Open an issue or discussion on https://github.com/vulnlog/vulnlog[GitHub], or reach the project on
+https://bsky.app/profile/vulnlog.bsky.social[Bluesky] and
+https://infosec.exchange/@vulnlog[Mastodon]. If one of the themes above would change how your team handles
+vulnerabilities, that feedback moves it up this list.
