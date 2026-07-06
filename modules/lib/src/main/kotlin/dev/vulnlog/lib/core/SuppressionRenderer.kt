@@ -3,7 +3,11 @@
 
 package dev.vulnlog.lib.core
 
+import dev.vulnlog.lib.model.VulnId
+import dev.vulnlog.lib.model.suppress.SuppressionFormat
 import dev.vulnlog.lib.model.suppress.SuppressionOutput
+import dev.vulnlog.lib.result.SuppressionExclusion
+import kotlin.reflect.KClass
 
 /**
  * Renders one diagnostic line for a written suppression output, stating the target, the format,
@@ -13,6 +17,41 @@ fun renderSuppressionWritten(
     target: String,
     output: SuppressionOutput,
 ): String = "wrote $target: ${formatName(output)} format, ${pluralizeEntries(entryCount(output))}"
+
+/**
+ * Renders one diagnostic line for an entry excluded from a suppression output, stating what was
+ * skipped and why. Shared by the CLI and the Gradle plugin.
+ */
+fun renderSuppressionExclusion(exclusion: SuppressionExclusion): String =
+    when (exclusion) {
+        is SuppressionExclusion.UnsupportedIdType ->
+            "skipped ${exclusion.id.canonical()} for ${exclusion.fileName}: " +
+                "the ${formatName(exclusion.format)} format requires ${requiredIdTypes(exclusion.format)} ids"
+
+        is SuppressionExclusion.UnsupportedReporter ->
+            "skipped ${exclusion.id.canonical()} for reporter ${exclusion.reporter.canonical()}: " +
+                "no suppression format available"
+    }
+
+private fun formatName(format: SuppressionFormat): String =
+    when (format) {
+        is SuppressionFormat.GenericFormat.Generic -> "generic"
+        SuppressionFormat.NativeFormat.Trivy -> "trivy"
+        SuppressionFormat.NativeFormat.Snyk -> "snyk"
+        SuppressionFormat.NativeFormat.CargoAudit -> "cargo-audit"
+    }
+
+private fun requiredIdTypes(format: SuppressionFormat): String =
+    format.vulnIdTypes.joinToString(" or ") { idTypeName(it) }
+
+private fun idTypeName(type: KClass<out VulnId>): String =
+    when (type) {
+        VulnId.Cve::class -> "CVE"
+        VulnId.Ghsa::class -> "GHSA"
+        VulnId.RustSec::class -> "RUSTSEC"
+        VulnId.Snyk::class -> "SNYK"
+        else -> type.simpleName ?: "unknown"
+    }
 
 private fun formatName(output: SuppressionOutput): String =
     when (output) {

@@ -86,7 +86,7 @@ class SuppressCommand : CliktCommand(name = "suppress") {
 
         val suppressionVulns =
             collectSuppressedVulnerabilities(vulnlogFile, SuppressionFilter(filter))
-        val outputSuppressions = buildSuppressionOutputs(targetReporters, suppressionVulns, format)
+        val outputSuppressions = buildSuppressionOutputs(targetReporters, suppressionVulns, format).outputs
         val contents: List<RenderedSuppression> =
             outputSuppressions.map { output -> RenderedSuppression(output, writeSuppressionOutput(output)) }
 

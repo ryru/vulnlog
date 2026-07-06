@@ -76,7 +76,7 @@ abstract class VulnlogSuppressTask : DefaultTask() {
             SuppressionFormatRequest.fromToken(
                 format.getOrElse("auto"),
             )
-        val outputs = buildSuppressionOutputs(targetReporters, suppressionVulns, suppressionFormatRequest)
+        val outputs = buildSuppressionOutputs(targetReporters, suppressionVulns, suppressionFormatRequest).outputs
 
         val dir = outputDir.get().asFile
         dir.mkdirs()

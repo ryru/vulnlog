@@ -3,9 +3,12 @@
 
 package dev.vulnlog.lib.core
 
+import dev.vulnlog.lib.model.ReporterType
 import dev.vulnlog.lib.model.VulnId
+import dev.vulnlog.lib.model.suppress.SuppressionFormat
 import dev.vulnlog.lib.model.suppress.SuppressionOutput
 import dev.vulnlog.lib.model.suppress.SuppressionVuln
+import dev.vulnlog.lib.result.SuppressionExclusion
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -62,6 +65,41 @@ class SuppressionRendererTest :
 
                 renderSuppressionWritten("audit.toml", output) shouldBe
                     "wrote audit.toml: cargo-audit format, 1 entry"
+            }
+        }
+
+        context("renderSuppressionExclusion") {
+
+            test("names the file and the required id type for an unsupported id type") {
+                val exclusion =
+                    SuppressionExclusion.UnsupportedIdType(
+                        id = VulnId.Cve("CVE-2026-1234"),
+                        fileName = ".snyk",
+                        format = SuppressionFormat.NativeFormat.Snyk,
+                    )
+
+                renderSuppressionExclusion(exclusion) shouldBe
+                    "skipped CVE-2026-1234 for .snyk: the snyk format requires SNYK ids"
+            }
+
+            test("lists all id types a format accepts") {
+                val exclusion =
+                    SuppressionExclusion.UnsupportedIdType(
+                        id = VulnId.RustSec("RUSTSEC-2026-0001"),
+                        fileName = ".trivyignore.yaml",
+                        format = SuppressionFormat.NativeFormat.Trivy,
+                    )
+
+                renderSuppressionExclusion(exclusion) shouldBe
+                    "skipped RUSTSEC-2026-0001 for .trivyignore.yaml: the trivy format requires CVE or GHSA ids"
+            }
+
+            test("names the reporter for an unsupported reporter") {
+                val exclusion =
+                    SuppressionExclusion.UnsupportedReporter(VulnId.Cve("CVE-2026-1234"), ReporterType.OTHER)
+
+                renderSuppressionExclusion(exclusion) shouldBe
+                    "skipped CVE-2026-1234 for reporter other: no suppression format available"
             }
         }
     })
