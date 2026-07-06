@@ -4,6 +4,7 @@
 package dev.vulnlog.lib.shell
 
 import dev.vulnlog.lib.core.VulnlogFileContext
+import dev.vulnlog.lib.core.formatSummary
 import dev.vulnlog.lib.core.renderValidation
 import dev.vulnlog.lib.core.validate
 import dev.vulnlog.lib.result.ParseResult
@@ -25,16 +26,25 @@ fun validateFiles(fileToResult: Map<FileInputOption, ParseResult.Ok>): Validatio
     return ValidationResults(contexts.mapValues { (_, context) -> results.getValue(context) })
 }
 
-/** Renders the findings of the given severities, one block per file, same format on all surfaces. */
+/** Renders the findings of the given severities, one line per finding plus a summary, same format on all surfaces. */
 fun renderValidationFindings(
     results: ValidationResults,
     renderedSeverities: Set<Severity> = Severity.entries.toSet(),
-): String =
-    results.fileFindings
-        .mapValues { (_, result) ->
-            result.copy(findings = result.findings.filter { it.severity in renderedSeverities })
-        }.filterValues { it.findings.isNotEmpty() }
-        .entries
-        .joinToString("\n\n") { (input, result) ->
-            "Validation findings for ${input.sourceFile().name}:\n${renderValidation(result)}"
-        }
+): String {
+    val filtered =
+        results.fileFindings
+            .mapValues { (_, result) ->
+                result.copy(findings = result.findings.filter { it.severity in renderedSeverities })
+            }.filterValues { it.findings.isNotEmpty() }
+    if (filtered.isEmpty()) return ""
+
+    val lines = filtered.entries.flatMap { (input, result) -> renderValidation(input.sourceFile().name, result) }
+    val findings = filtered.values.flatMap { it.findings }
+    val summary =
+        formatSummary(
+            errors = findings.count { it.severity == Severity.ERROR },
+            warnings = findings.count { it.severity == Severity.WARNING },
+            infos = findings.count { it.severity == Severity.INFO },
+        )
+    return (lines + summary).joinToString("\n")
+}
