@@ -4,6 +4,7 @@
 package dev.vulnlog.gradle
 
 import dev.vulnlog.gradle.internal.buildFilterOrFail
+import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.parseInputOrFail
 import dev.vulnlog.gradle.internal.requireNonEmptyVulnlogFiles
 import dev.vulnlog.gradle.internal.validateParsedInputOrFailWithFailureOutput
@@ -56,9 +57,10 @@ abstract class VulnlogReportTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
+        val sink = diagnosticSink()
         val inputFiles = files.files.map { FileInputOption.File(it.toPath()) }
         requireNonEmptyVulnlogFiles(inputFiles)
-        val parsedSuccessfully = parseInputOrFail(inputFiles)
+        val parsedSuccessfully = parseInputOrFail(inputFiles, sink)
         validateParsedInputOrFailWithFailureOutput(parsedSuccessfully)
 
         val vulnlogFiles = parsedSuccessfully.values.map(ParseResult.Ok::content)
@@ -67,7 +69,7 @@ abstract class VulnlogReportTask : DefaultTask() {
             validateSharedProject(vulnlogFiles)
                 ?: throw GradleException("All input files must share the same project metadata.")
 
-        val filter = buildFilterOrFail(vulnlogFiles.first(), reporter.orNull, release.orNull, tags.get())
+        val filter = buildFilterOrFail(vulnlogFiles.first(), reporter.orNull, release.orNull, tags.get(), sink)
 
         val allEntries = vulnlogFiles.flatMap { collectReportingEntries(it, filter) }
         val merged = mergeReportingEntries(allEntries)

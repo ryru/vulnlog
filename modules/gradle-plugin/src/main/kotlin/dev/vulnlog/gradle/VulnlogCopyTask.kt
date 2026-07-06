@@ -3,6 +3,7 @@
 
 package dev.vulnlog.gradle
 
+import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.parseInputOrFail
 import dev.vulnlog.gradle.internal.validateParsedInputOrFailWithFailureOutput
 import dev.vulnlog.lib.core.copyVulnerabilities
@@ -43,8 +44,9 @@ abstract class VulnlogCopyTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
+        val sink = diagnosticSink()
         val sourceInput = FileInputOption.File(sourceFile.get().asFile.toPath())
-        val parsedSource = parseInputOrFail(listOf(sourceInput))
+        val parsedSource = parseInputOrFail(listOf(sourceInput), sink)
         validateParsedInputOrFailWithFailureOutput(parsedSource)
         val sourceVulnlogFile = parsedSource.values.first().content
 
@@ -57,7 +59,7 @@ abstract class VulnlogCopyTask : DefaultTask() {
         val mapper = createYamlMapper()
         val destinations = destinationFiles.files.map { FileInputOption.File(it.toPath()) }
         for (destination in destinations) {
-            val parsedDestination = parseInputOrFail(listOf(destination))
+            val parsedDestination = parseInputOrFail(listOf(destination), sink)
             validateParsedInputOrFailWithFailureOutput(parsedDestination)
             val destinationFile = parsedDestination.values.first()
 

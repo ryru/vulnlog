@@ -9,11 +9,14 @@ import dev.vulnlog.lib.result.ParseResult
 import dev.vulnlog.lib.result.ParseResults
 import dev.vulnlog.lib.result.Severity
 import dev.vulnlog.lib.result.ValidationResults
+import dev.vulnlog.lib.shell.DiagnosticSink
 import dev.vulnlog.lib.shell.FileInputOption
 import dev.vulnlog.lib.shell.FilterValidationException
 import dev.vulnlog.lib.shell.buildFilter
 import dev.vulnlog.lib.shell.parseInputs
+import dev.vulnlog.lib.shell.renderFilterResolution
 import dev.vulnlog.lib.shell.renderParseFailures
+import dev.vulnlog.lib.shell.renderParsedInputs
 import dev.vulnlog.lib.shell.renderValidationFindings
 import dev.vulnlog.lib.shell.validateFiles
 import org.gradle.api.DefaultTask
@@ -36,7 +39,10 @@ fun requireSingleVulnlogFile(
     return inputFiles.single()
 }
 
-fun parseInputOrFail(inputFiles: List<FileInputOption.File>): Map<FileInputOption, ParseResult.Ok> {
+fun parseInputOrFail(
+    inputFiles: List<FileInputOption.File>,
+    sink: DiagnosticSink = DiagnosticSink.NONE,
+): Map<FileInputOption, ParseResult.Ok> {
     val parseResults: ParseResults =
         try {
             parseInputs(inputFiles)
@@ -47,6 +53,7 @@ fun parseInputOrFail(inputFiles: List<FileInputOption.File>): Map<FileInputOptio
     if (parseResults.failure.isNotEmpty()) {
         throw GradleException(renderParseFailures(parseResults).joinToString("\n\n"))
     }
+    renderParsedInputs(parseResults.success).forEach(sink::verbose)
     return parseResults.success
 }
 
@@ -55,9 +62,12 @@ fun buildFilterOrFail(
     reporterOption: String?,
     releaseOption: String?,
     tagsOptions: Set<String>,
+    sink: DiagnosticSink = DiagnosticSink.NONE,
 ): VulnlogFilter =
     try {
-        buildFilter(vulnlogFile, reporterOption, releaseOption, tagsOptions)
+        val filter = buildFilter(vulnlogFile, reporterOption, releaseOption, tagsOptions)
+        renderFilterResolution(filter).forEach(sink::verbose)
+        filter
     } catch (e: FilterValidationException) {
         throw GradleException("${e.message}. ${e.detail}")
     }

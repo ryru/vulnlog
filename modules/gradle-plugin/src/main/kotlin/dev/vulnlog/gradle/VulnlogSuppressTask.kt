@@ -4,12 +4,14 @@
 package dev.vulnlog.gradle
 
 import dev.vulnlog.gradle.internal.buildFilterOrFail
+import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.parseInputOrFail
 import dev.vulnlog.gradle.internal.requireSingleVulnlogFile
 import dev.vulnlog.gradle.internal.validateParsedInputOrFailWithFailureOutput
 import dev.vulnlog.lib.core.SuppressionFilter
 import dev.vulnlog.lib.core.buildSuppressionOutputs
 import dev.vulnlog.lib.core.collectSuppressedVulnerabilities
+import dev.vulnlog.lib.core.renderSuppressionWritten
 import dev.vulnlog.lib.parse.suppression.SuppressionWriter
 import dev.vulnlog.lib.shell.FileInputOption
 import dev.vulnlog.lib.shell.SuppressionFormatRequest
@@ -53,13 +55,14 @@ abstract class VulnlogSuppressTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
+        val sink = diagnosticSink()
         val inputFiles = files.files.map { FileInputOption.File(it.toPath()) }
         requireSingleVulnlogFile("vulnlogSuppress", inputFiles)
-        val parsedSuccessfully = parseInputOrFail(inputFiles)
+        val parsedSuccessfully = parseInputOrFail(inputFiles, sink)
         validateParsedInputOrFailWithFailureOutput(parsedSuccessfully)
 
         val vulnlogFile = parsedSuccessfully.values.first().content
-        val filter = buildFilterOrFail(vulnlogFile, reporter.orNull, release.orNull, tags.get())
+        val filter = buildFilterOrFail(vulnlogFile, reporter.orNull, release.orNull, tags.get(), sink)
 
         val targetReporters =
             vulnlogFile.vulnerabilities
@@ -82,6 +85,7 @@ abstract class VulnlogSuppressTask : DefaultTask() {
             val outputPath = dir.resolve(suppressionFile.fileName)
             outputPath.writeText(suppressionFile.content)
             logger.lifecycle("Suppression file created at: ${outputPath.absolutePath}")
+            sink.verbose(renderSuppressionWritten(outputPath.path, suppressionOutput))
         }
     }
 }

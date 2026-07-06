@@ -3,6 +3,7 @@
 
 package dev.vulnlog.gradle
 
+import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.parseInputOrFail
 import dev.vulnlog.gradle.internal.requireNonEmptyVulnlogFiles
 import dev.vulnlog.lib.core.FormatOutcome
@@ -43,7 +44,7 @@ abstract class VulnlogFmtTask : DefaultTask() {
     fun format() {
         val inputFiles = files.files.map { FileInputOption.File(it.toPath()) }
         requireNonEmptyVulnlogFiles(inputFiles)
-        val parsed = parseInputOrFail(inputFiles)
+        val parsed = parseInputOrFail(inputFiles, diagnosticSink())
 
         val mapper = createYamlMapper()
         val checkOnly = check.getOrElse(false)
