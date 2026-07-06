@@ -17,7 +17,9 @@ import com.github.ajalt.clikt.parameters.options.versionOption
 import dev.vulnlog.cli.BuildInfo
 import kotlin.system.exitProcess
 
-fun main(args: Array<String>): Nothing = exitProcess(runVulnlog(vulnlogCommand(), args.asList()))
+fun main(args: Array<String>) {
+    exitProcess(runVulnlog(vulnlogCommand(), args.asList()))
+}
 
 fun vulnlogCommand(): VulnlogCli =
     VulnlogCli()
