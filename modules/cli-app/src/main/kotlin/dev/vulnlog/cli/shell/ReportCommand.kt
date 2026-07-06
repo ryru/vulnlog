@@ -86,13 +86,15 @@ class ReportCommand : CliktCommand(name = "report") {
         val content = renderHtmlReport(reportData)
 
         when (val target = output) {
-            is FileOutputOption.File ->
+            is FileOutputOption.File -> {
                 writeReport(
                     { echoStatus(it) },
                     { echo(it, err = true) },
                     target,
                     content,
                 )
+                diagnosticSink().verbose("wrote ${target.path}")
+            }
 
             is FileOutputOption.Stdout -> echo(content)
         }

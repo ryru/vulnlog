@@ -13,6 +13,7 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.paths.shouldExist
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 private class ProbeCommand : CliktCommand(name = "probe") {
     var seen: Verbosity? = null
@@ -211,6 +212,67 @@ class VulnlogCliTest :
 
                     result.statusCode shouldBe ExitCode.VALIDATION_ERROR.ordinal
                     result.stderr shouldContain file.name
+                }
+            }
+        }
+
+        context("verbose mode") {
+
+            test("suppress reports parsed inputs and written outputs on stderr") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    withTempDir { dir ->
+                        val result =
+                            vulnlogCommand().test(
+                                "-v suppress ${file.absolutePath} --output-dir ${dir.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldContain
+                            "verbose: parsed ${file.name}: schema version 1, releases: 1, tags: 0, vulnerabilities: 1"
+                        result.stderr shouldContain
+                            "verbose: wrote ${dir.resolve(".trivyignore.yaml")}: trivy format, 1 entry"
+                    }
+                }
+            }
+
+            test("without -v no verbose lines appear") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    withTempDir { dir ->
+                        val result =
+                            vulnlogCommand().test(
+                                "suppress ${file.absolutePath} --output-dir ${dir.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldNotContain "verbose:"
+                    }
+                }
+            }
+
+            test("report shows the filter expansion") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    withTempDir { dir ->
+                        val output = dir.resolve("report.html")
+                        val result =
+                            vulnlogCommand().test(
+                                "-v report ${file.absolutePath} --release 1.0.0 -o ${output.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldContain "verbose: release filter expanded to releases: 1.0.0"
+                        result.stderr shouldContain "verbose: wrote ${output.toAbsolutePath()}"
+                    }
+                }
+            }
+
+            test("verbosity never touches stdout") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    val plain = vulnlogCommand().test("suppress ${file.absolutePath} -o -")
+                    val verbose = vulnlogCommand().test("-vv suppress ${file.absolutePath} -o -")
+
+                    plain.statusCode shouldBe 0
+                    verbose.statusCode shouldBe 0
+                    verbose.stdout shouldBe plain.stdout
                 }
             }
         }

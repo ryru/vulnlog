@@ -20,7 +20,9 @@ import dev.vulnlog.lib.shell.FileInputOption
 import dev.vulnlog.lib.shell.FileOutputOption
 import dev.vulnlog.lib.shell.FilterValidationException
 import dev.vulnlog.lib.shell.parseInputs
+import dev.vulnlog.lib.shell.renderFilterResolution
 import dev.vulnlog.lib.shell.renderParseFailures
+import dev.vulnlog.lib.shell.renderParsedInputs
 import dev.vulnlog.lib.shell.renderValidationFindings
 import dev.vulnlog.lib.shell.resolveReleaseFilter
 import dev.vulnlog.lib.shell.resolveTagsFilter
@@ -52,6 +54,7 @@ fun CliktCommand.parseInputOrFail(inputs: List<FileInputOption>): Map<FileInputO
         echoHelpHint()
         throw ProgramResult(ExitCode.VALIDATION_ERROR.ordinal)
     }
+    renderParsedInputs(parseResults.success).forEach { diagnosticSink().verbose(it) }
     return parseResults.success
 }
 
@@ -121,7 +124,9 @@ fun CliktCommand.resolveFilter(
     try {
         val releases = resolveReleaseFilter(filterOptions.releaseOption, vulnlogFile)
         val tags = resolveTagsFilter(filterOptions.tagsOptions, vulnlogFile)
-        VulnlogFilter(releases, tags, filterOptions.reporter)
+        val filter = VulnlogFilter(releases, tags, filterOptions.reporter)
+        renderFilterResolution(filter).forEach { diagnosticSink().verbose(it) }
+        filter
     } catch (e: FilterValidationException) {
         echo(e.message, err = true)
         echo(e.detail, err = true)
