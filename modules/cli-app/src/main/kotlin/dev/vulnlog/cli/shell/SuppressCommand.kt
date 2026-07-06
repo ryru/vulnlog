@@ -70,7 +70,6 @@ class SuppressCommand : CliktCommand(name = "suppress") {
     val filterOptions by FilterOptions()
 
     override fun run() {
-        printOutputSeparator()
         val parsedSuccessfully = parseInputOrFail(listOf(input))
         validateParsedInputOrFailWithFailureOutput(parsedSuccessfully)
 
