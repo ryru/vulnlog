@@ -13,8 +13,10 @@ import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import dev.vulnlog.lib.core.FormatOutcome
+import dev.vulnlog.lib.core.StatusVerb
 import dev.vulnlog.lib.core.checkFormat
 import dev.vulnlog.lib.core.formatCommentsDroppedWarning
+import dev.vulnlog.lib.core.formatStatus
 import dev.vulnlog.lib.core.formatYamlOutcome
 import dev.vulnlog.lib.core.renderFormatFinding
 import dev.vulnlog.lib.parse.createYamlMapper
@@ -75,7 +77,8 @@ class FmtCommand : CliktCommand(name = "fmt") {
 
                 is FileInputOption.File ->
                     when (outcome) {
-                        is FormatOutcome.Unchanged -> echoStatus("Already formatted: ${input.path}")
+                        is FormatOutcome.Unchanged ->
+                            echoStatus(formatStatus(StatusVerb.UNCHANGED, input.path.toString()))
                         is FormatOutcome.Reformatted ->
                             if (isCheck) {
                                 echo("Can be reformatted: ${input.path}")
@@ -87,7 +90,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
                                     echo(formatCommentsDroppedWarning(input.path.toString()), err = true)
                                 }
                                 input.path.writeText(outcome.formatted.content)
-                                echoStatus("Formatted: ${input.path}")
+                                echoStatus(formatStatus(StatusVerb.FORMATTED, input.path.toString()))
                             }
                     }
             }
