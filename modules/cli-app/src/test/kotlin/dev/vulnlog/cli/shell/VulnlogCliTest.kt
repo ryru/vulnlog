@@ -294,6 +294,47 @@ class VulnlogCliTest :
                 }
             }
 
+            test("suppress reports expired suppressions") {
+                val expiredYaml =
+                    """
+                    ---
+                    schemaVersion: "1"
+
+                    project:
+                      organization: Acme Corp
+                      name: Acme Web App
+                      author: Acme Corp Security Team
+
+                    releases:
+                      - id: 1.0.0
+                        published_at: 2026-01-15
+
+                    vulnerabilities:
+
+                      - id: CVE-2026-1234
+                        releases: [ 1.0.0 ]
+                        description: Remote code execution in example-lib
+                        packages: [ "pkg:npm/example-lib@2.3.0" ]
+                        reports:
+                          - reporter: trivy
+                            suppress: { expires_at: 2026-02-01 }
+                        analysis: not reachable
+                        verdict: under_investigation
+                    """.trimIndent()
+                withTempFile(content = expiredYaml) { file ->
+                    withTempDir { dir ->
+                        val result =
+                            vulnlogCommand().test(
+                                "-v suppress ${file.absolutePath} --output-dir ${dir.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldContain
+                            "verbose: skipped CVE-2026-1234 for reporter trivy: suppression expired on 2026-02-01"
+                    }
+                }
+            }
+
             test("verbosity never touches stdout") {
                 withTempFile(content = vulnlogYaml()) { file ->
                     val plain = vulnlogCommand().test("suppress ${file.absolutePath} -o -")

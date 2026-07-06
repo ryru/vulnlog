@@ -72,13 +72,13 @@ abstract class VulnlogSuppressTask : DefaultTask() {
                 .filter { filter.reporter == null || it == filter.reporter }
                 .toSet()
 
-        val suppressionVulns = collectSuppressedVulnerabilities(vulnlogFile, SuppressionFilter(filter))
+        val collected = collectSuppressedVulnerabilities(vulnlogFile, SuppressionFilter(filter))
         val suppressionFormatRequest: SuppressionFormatRequest =
             SuppressionFormatRequest.fromToken(
                 format.getOrElse("auto"),
             )
-        val suppressionResult = buildSuppressionOutputs(targetReporters, suppressionVulns, suppressionFormatRequest)
-        suppressionResult.exclusions.forEach { exclusion ->
+        val suppressionResult = buildSuppressionOutputs(targetReporters, collected.included, suppressionFormatRequest)
+        (collected.exclusions + suppressionResult.exclusions).forEach { exclusion ->
             sink.verbose(renderSuppressionExclusion(exclusion))
         }
         val outputs = suppressionResult.outputs

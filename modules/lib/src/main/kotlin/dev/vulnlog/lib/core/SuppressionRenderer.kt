@@ -31,6 +31,13 @@ fun renderSuppressionExclusion(exclusion: SuppressionExclusion): String =
         is SuppressionExclusion.UnsupportedReporter ->
             "skipped ${exclusion.id.canonical()} for reporter ${exclusion.reporter.canonical()}: " +
                 "no suppression format available"
+
+        is SuppressionExclusion.ResolvedVulnerability ->
+            "skipped ${exclusion.id.canonical()}: resolved vulnerabilities are not suppressed"
+
+        is SuppressionExclusion.ExpiredSuppression ->
+            "skipped ${exclusion.id.canonical()} for reporter ${exclusion.reporter.canonical()}: " +
+                "suppression expired on ${exclusion.expiredAt}"
     }
 
 private fun formatName(format: SuppressionFormat): String =

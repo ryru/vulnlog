@@ -11,6 +11,7 @@ import dev.vulnlog.lib.model.suppress.SuppressionVuln
 import dev.vulnlog.lib.result.SuppressionExclusion
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import java.time.LocalDate
 
 class SuppressionRendererTest :
     FunSpec({
@@ -100,6 +101,25 @@ class SuppressionRendererTest :
 
                 renderSuppressionExclusion(exclusion) shouldBe
                     "skipped CVE-2026-1234 for reporter other: no suppression format available"
+            }
+
+            test("explains a resolved vulnerability") {
+                val exclusion = SuppressionExclusion.ResolvedVulnerability(VulnId.Cve("CVE-2026-1234"))
+
+                renderSuppressionExclusion(exclusion) shouldBe
+                    "skipped CVE-2026-1234: resolved vulnerabilities are not suppressed"
+            }
+
+            test("names the expiry date of an expired suppression") {
+                val exclusion =
+                    SuppressionExclusion.ExpiredSuppression(
+                        VulnId.Cve("CVE-2026-1234"),
+                        ReporterType.TRIVY,
+                        LocalDate.of(2026, 1, 31),
+                    )
+
+                renderSuppressionExclusion(exclusion) shouldBe
+                    "skipped CVE-2026-1234 for reporter trivy: suppression expired on 2026-01-31"
             }
         }
     })

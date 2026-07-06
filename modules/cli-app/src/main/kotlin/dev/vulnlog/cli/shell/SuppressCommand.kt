@@ -85,10 +85,9 @@ class SuppressCommand : CliktCommand(name = "suppress") {
                 .filter { filter.reporter == null || it == filter.reporter }
                 .toSet()
 
-        val suppressionVulns =
-            collectSuppressedVulnerabilities(vulnlogFile, SuppressionFilter(filter))
-        val suppressionResult = buildSuppressionOutputs(targetReporters, suppressionVulns, format)
-        suppressionResult.exclusions.forEach { exclusion ->
+        val collected = collectSuppressedVulnerabilities(vulnlogFile, SuppressionFilter(filter))
+        val suppressionResult = buildSuppressionOutputs(targetReporters, collected.included, format)
+        (collected.exclusions + suppressionResult.exclusions).forEach { exclusion ->
             diagnosticSink().verbose(renderSuppressionExclusion(exclusion))
         }
         val contents: List<RenderedSuppression> =
