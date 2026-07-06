@@ -105,6 +105,16 @@ class VulnlogSuppressTaskTest :
                 result.task(":vulnlogSuppress")?.outcome shouldBe TaskOutcome.SUCCESS
                 result.output shouldNotContain "parsed test.vl.yaml"
             }
+
+            test("--info shows entries skipped for the output format") {
+                val dir = gradleProject(FILES_FROM_TEST_YAML, "test.vl.yaml" to vulnlogYaml(reporter = "snyk"))
+
+                val result = runner(dir, "vulnlogSuppress", "--info").build()
+
+                result.task(":vulnlogSuppress")?.outcome shouldBe TaskOutcome.SUCCESS
+                result.output shouldContain
+                    "skipped CVE-2026-1234 for .snyk: the snyk format requires SNYK ids"
+            }
         }
 
         context("format selection") {

@@ -22,6 +22,7 @@ import dev.vulnlog.lib.core.SuppressionFilter
 import dev.vulnlog.lib.core.buildSuppressionOutputs
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.collectSuppressedVulnerabilities
+import dev.vulnlog.lib.core.renderSuppressionExclusion
 import dev.vulnlog.lib.core.renderSuppressionWritten
 import dev.vulnlog.lib.model.suppress.SuppressionOutput
 import dev.vulnlog.lib.parse.suppression.SuppressionFile
@@ -86,9 +87,12 @@ class SuppressCommand : CliktCommand(name = "suppress") {
 
         val suppressionVulns =
             collectSuppressedVulnerabilities(vulnlogFile, SuppressionFilter(filter))
-        val outputSuppressions = buildSuppressionOutputs(targetReporters, suppressionVulns, format).outputs
+        val suppressionResult = buildSuppressionOutputs(targetReporters, suppressionVulns, format)
+        suppressionResult.exclusions.forEach { exclusion ->
+            diagnosticSink().verbose(renderSuppressionExclusion(exclusion))
+        }
         val contents: List<RenderedSuppression> =
-            outputSuppressions.map { output -> RenderedSuppression(output, writeSuppressionOutput(output)) }
+            suppressionResult.outputs.map { output -> RenderedSuppression(output, writeSuppressionOutput(output)) }
 
         if (contents.isEmpty()) {
             echoStatus("No suppression entries applicable; nothing written.", err = true)

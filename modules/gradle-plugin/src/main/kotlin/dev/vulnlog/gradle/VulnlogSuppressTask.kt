@@ -11,6 +11,7 @@ import dev.vulnlog.gradle.internal.validateParsedInputOrFailWithFailureOutput
 import dev.vulnlog.lib.core.SuppressionFilter
 import dev.vulnlog.lib.core.buildSuppressionOutputs
 import dev.vulnlog.lib.core.collectSuppressedVulnerabilities
+import dev.vulnlog.lib.core.renderSuppressionExclusion
 import dev.vulnlog.lib.core.renderSuppressionWritten
 import dev.vulnlog.lib.parse.suppression.SuppressionWriter
 import dev.vulnlog.lib.shell.FileInputOption
@@ -76,7 +77,11 @@ abstract class VulnlogSuppressTask : DefaultTask() {
             SuppressionFormatRequest.fromToken(
                 format.getOrElse("auto"),
             )
-        val outputs = buildSuppressionOutputs(targetReporters, suppressionVulns, suppressionFormatRequest).outputs
+        val suppressionResult = buildSuppressionOutputs(targetReporters, suppressionVulns, suppressionFormatRequest)
+        suppressionResult.exclusions.forEach { exclusion ->
+            sink.verbose(renderSuppressionExclusion(exclusion))
+        }
+        val outputs = suppressionResult.outputs
 
         val dir = outputDir.get().asFile
         dir.mkdirs()

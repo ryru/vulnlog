@@ -265,6 +265,35 @@ class VulnlogCliTest :
                 }
             }
 
+            test("suppress reports entries skipped for the output format") {
+                withTempFile(content = vulnlogYaml(reporter = "snyk")) { file ->
+                    withTempDir { dir ->
+                        val result =
+                            vulnlogCommand().test(
+                                "-v suppress ${file.absolutePath} --output-dir ${dir.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldContain
+                            "verbose: skipped CVE-2026-1234 for .snyk: the snyk format requires SNYK ids"
+                    }
+                }
+            }
+
+            test("skipped entries stay silent without -v") {
+                withTempFile(content = vulnlogYaml(reporter = "snyk")) { file ->
+                    withTempDir { dir ->
+                        val result =
+                            vulnlogCommand().test(
+                                "suppress ${file.absolutePath} --output-dir ${dir.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldNotContain "skipped"
+                    }
+                }
+            }
+
             test("verbosity never touches stdout") {
                 withTempFile(content = vulnlogYaml()) { file ->
                     val plain = vulnlogCommand().test("suppress ${file.absolutePath} -o -")
