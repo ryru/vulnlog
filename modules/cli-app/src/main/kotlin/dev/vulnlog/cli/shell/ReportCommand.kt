@@ -88,7 +88,7 @@ class ReportCommand : CliktCommand(name = "report") {
         when (val target = output) {
             is FileOutputOption.File ->
                 writeReport(
-                    { echo(it) },
+                    { echoStatus(it) },
                     { echo(it, err = true) },
                     target,
                     content,

@@ -47,7 +47,7 @@ class InitCommand : CliktCommand(name = "init") {
         when (val target = output) {
             is FileOutputOption.File ->
                 writeInit(
-                    { echo(it) },
+                    { echoStatus(it) },
                     { echo(it, err = true) },
                     target,
                     content,

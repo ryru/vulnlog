@@ -21,3 +21,10 @@ fun CliktCommand.diagnostics(): CliDiagnostics =
     currentContext.findObject<CliDiagnostics>() ?: CliDiagnostics(Verbosity()) { echo(it, err = true) }
 
 fun CliktCommand.diagnosticSink(): DiagnosticSink = diagnostics().sink
+
+fun CliktCommand.echoStatus(
+    message: String,
+    err: Boolean = false,
+) {
+    if (diagnostics().verbosity.statusEnabled) echo(message, err = err)
+}

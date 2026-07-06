@@ -88,7 +88,7 @@ class SuppressCommand : CliktCommand(name = "suppress") {
         val contents: List<SuppressionFile> = outputSuppressions.map(::writeSuppressionOutput)
 
         if (contents.isEmpty()) {
-            echo("No suppression entries applicable; nothing written.", err = true)
+            echoStatus("No suppression entries applicable; nothing written.", err = true)
             return
         }
 
@@ -115,7 +115,7 @@ class SuppressCommand : CliktCommand(name = "suppress") {
         suppressionFiles.forEach { suppressionFile ->
             val outputPath: Path = destination.path.resolve(suppressionFile.fileName)
             writeSuppressionFile(
-                { echo(it) },
+                { echoStatus(it) },
                 { echo(it, err = true) },
                 outputPath,
                 suppressionFile,
@@ -129,7 +129,7 @@ class SuppressCommand : CliktCommand(name = "suppress") {
     ) {
         val outputPath = destination.path
         writeSuppressionFile(
-            { echo(it) },
+            { echoStatus(it) },
             { echo(it, err = true) },
             outputPath,
             suppressionFile,

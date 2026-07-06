@@ -76,7 +76,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
 
                 is FileInputOption.File ->
                     when (outcome) {
-                        is FormatOutcome.Unchanged -> echo("Already formatted: ${input.path}")
+                        is FormatOutcome.Unchanged -> echoStatus("Already formatted: ${input.path}")
                         is FormatOutcome.Reformatted ->
                             if (isCheck) {
                                 echo("Can be reformatted: ${input.path}")
@@ -88,7 +88,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
                                     echo(formatCommentsDroppedWarning(input.path.toString()), err = true)
                                 }
                                 input.path.writeText(outcome.formatted.content)
-                                echo("Formatted: ${input.path}")
+                                echoStatus("Formatted: ${input.path}")
                             }
                     }
             }

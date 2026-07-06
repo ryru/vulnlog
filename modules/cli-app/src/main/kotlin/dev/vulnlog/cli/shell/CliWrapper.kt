@@ -71,7 +71,7 @@ fun CliktCommand.validateParsedInputOrFailWithFailureOutput(
     return validationFindings
 }
 
-fun CliktCommand.printOutputSeparator() = echo("", err = true)
+fun CliktCommand.printOutputSeparator() = echoStatus("", err = true)
 
 fun OptionCallTransformContext.toOutputFileOption(output: String): FileOutputOption =
     if (output == "-") {

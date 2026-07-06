@@ -182,7 +182,7 @@ class AddCommand : CliktCommand(name = "add") {
                 echo(formatCommentsDroppedWarning(destination.path.toString()), err = true)
             }
             destination.path.writeText(outcome.newContent)
-            echo(formatAddOutcomeMessage(destination.path, outcome))
+            echoStatus(formatAddOutcomeMessage(destination.path, outcome))
         }
     }
 }

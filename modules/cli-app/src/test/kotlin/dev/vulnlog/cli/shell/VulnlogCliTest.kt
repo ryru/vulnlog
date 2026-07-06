@@ -10,6 +10,7 @@ import dev.vulnlog.lib.shell.DiagnosticLevel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.paths.shouldExist
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 
@@ -165,5 +166,52 @@ class VulnlogCliTest :
             probe.test("").statusCode shouldBe 0
 
             probe.seen shouldBe Verbosity(level = 0, quiet = false)
+        }
+
+        context("quiet mode") {
+
+            test("validate stays silent on success") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    val result = vulnlogCommand().test("-q validate ${file.absolutePath}")
+
+                    result.statusCode shouldBe 0
+                    result.stdout shouldBe ""
+                    result.stderr shouldBe ""
+                }
+            }
+
+            test("validate without quiet prints the status line") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    val result = vulnlogCommand().test("validate ${file.absolutePath}")
+
+                    result.statusCode shouldBe 0
+                    result.stdout shouldContain "Validation OK"
+                }
+            }
+
+            test("suppress writes the file but no status line") {
+                withTempFile(content = vulnlogYaml()) { file ->
+                    withTempDir { dir ->
+                        val result =
+                            vulnlogCommand().test(
+                                "-q suppress ${file.absolutePath} --output-dir ${dir.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stdout shouldBe ""
+                        result.stderr shouldBe ""
+                        dir.resolve(".trivyignore.yaml").shouldExist()
+                    }
+                }
+            }
+
+            test("errors still print") {
+                withTempFile(content = INVALID_VULNLOG_YAML) { file ->
+                    val result = vulnlogCommand().test("-q validate ${file.absolutePath}")
+
+                    result.statusCode shouldBe ExitCode.VALIDATION_ERROR.ordinal
+                    result.stderr shouldContain file.name
+                }
+            }
         }
     })
