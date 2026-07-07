@@ -259,10 +259,11 @@ object V1Mapper {
                     "$path.justification",
                 ) { Verdict.NotAffected(parseVexJustification(dto.justification)) }
 
+            // Deprecated since the disposition axis; accepted until 1.0 and rewritten on canonical writes.
             "risk acceptable" ->
                 failures.attempt(
                     "$path.severity",
-                ) { Verdict.RiskAcceptable(parseSeverity(dto.severity)) }
+                ) { Verdict.Affected(parseSeverity(dto.severity), Disposition.WONT_FIX) }
             "under_investigation", null -> Verdict.UnderInvestigation
             else -> {
                 failures.report("$path.verdict", "Invalid verdict: ${dto.verdict}")
@@ -333,14 +334,12 @@ object V1Mapper {
         when (verdict) {
             is Verdict.Affected -> "affected"
             is Verdict.NotAffected -> "not affected"
-            is Verdict.RiskAcceptable -> "risk acceptable"
             is Verdict.UnderInvestigation -> null
         }
 
     private fun severityToString(verdict: Verdict): String? =
         when (verdict) {
             is Verdict.Affected -> verdict.severity.name.lowercase()
-            is Verdict.RiskAcceptable -> verdict.severity.name.lowercase()
             else -> null
         }
 

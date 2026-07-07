@@ -24,16 +24,6 @@ sealed interface Verdict {
     ) : Verdict
 
     /**
-     * The vulnerability affects this release but the risk has been assessed and accepted.
-     */
-    data class RiskAcceptable(
-        /**
-         * Severity of the vulnerability.
-         */
-        val severity: Severity,
-    ) : Verdict
-
-    /**
      * The vulnerability does not affect this release.
      */
     data class NotAffected(

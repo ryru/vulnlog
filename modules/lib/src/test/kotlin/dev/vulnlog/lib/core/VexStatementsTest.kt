@@ -3,6 +3,7 @@
 
 package dev.vulnlog.lib.core
 
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Purl
 import dev.vulnlog.lib.model.PurlEntry
@@ -102,12 +103,20 @@ class VexStatementsTest :
             buildVexStatements(file, release3).first().status shouldBe VexStatus.Fixed
         }
 
-        test("a risk acceptable vulnerability stays affected even when a resolution exists") {
+        test("an accepted vulnerability with a passive fix becomes fixed once the target contains it") {
             val entry =
                 vulnerability(
-                    verdict = Verdict.RiskAcceptable(Severity.LOW),
+                    verdict = Verdict.Affected(Severity.LOW, Disposition.WONT_FIX),
                     resolution = Resolution(release = release2),
                 )
+            val file = vulnlogFile(threeReleases, listOf(entry))
+
+            buildVexStatements(file, release1).first().status shouldBe VexStatus.Affected
+            buildVexStatements(file, release3).first().status shouldBe VexStatus.Fixed
+        }
+
+        test("an accepted vulnerability without resolution stays affected") {
+            val entry = vulnerability(verdict = Verdict.Affected(Severity.LOW, Disposition.WONT_FIX))
             val file = vulnlogFile(threeReleases, listOf(entry))
 
             buildVexStatements(file, release3).first().status shouldBe VexStatus.Affected

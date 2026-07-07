@@ -454,7 +454,7 @@ class V1MapperTest :
                 invalid.failures.single().message shouldBe "Disposition requires verdict 'affected'."
             }
 
-            test("risk acceptable verdict with severity maps to RiskAcceptable") {
+            test("legacy risk acceptable verdict maps to Affected with wont-fix disposition") {
                 val dto =
                     minimalDto(
                         vulnerabilities =
@@ -472,7 +472,30 @@ class V1MapperTest :
 
                 toDomain(dto)
                     .vulnerabilities[0]
-                    .verdict shouldBe Verdict.RiskAcceptable(Severity.LOW)
+                    .verdict shouldBe Verdict.Affected(Severity.LOW, Disposition.WONT_FIX)
+            }
+
+            test("legacy risk acceptable round-trips to the affected plus wont-fix form") {
+                val legacy =
+                    minimalDto(
+                        vulnerabilities =
+                            listOf(
+                                VulnerabilityEntryDto(
+                                    "CVE-2021-1",
+                                    releases = emptyList(),
+                                    packages = emptyList(),
+                                    reports = emptyList(),
+                                    verdict = "risk acceptable",
+                                    severity = "low",
+                                ),
+                            ),
+                    )
+
+                val migrated = V1Mapper.toDto(toDomain(legacy)).vulnerabilities.single()
+
+                migrated.verdict shouldBe "affected"
+                migrated.severity shouldBe "low"
+                migrated.disposition shouldBe "wont-fix"
             }
 
             test("not affected verdict with justification maps to NotAffected") {

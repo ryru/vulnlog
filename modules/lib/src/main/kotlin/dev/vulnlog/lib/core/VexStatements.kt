@@ -86,7 +86,6 @@ private fun deriveStatus(
         is Verdict.NotAffected -> VexStatus.NotAffected(verdict.justification)
         is Verdict.Affected ->
             if (targetContainsFix(entry.resolution, releaseOrder, targetIndex)) VexStatus.Fixed else VexStatus.Affected
-        is Verdict.RiskAcceptable -> VexStatus.Affected
         Verdict.UnderInvestigation -> VexStatus.UnderInvestigation
     }
 

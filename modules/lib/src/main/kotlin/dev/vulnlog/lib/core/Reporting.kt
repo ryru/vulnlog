@@ -3,6 +3,7 @@
 
 package dev.vulnlog.lib.core
 
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Release
 import dev.vulnlog.lib.model.Verdict
@@ -94,18 +95,28 @@ fun findWorkState(
         vulnEntry.resolution?.takeIf {
             filterReleases.isEmpty() || it.release in filterReleases
         }
-    return when (vulnEntry.verdict) {
+    return when (val verdict = vulnEntry.verdict) {
         Verdict.UnderInvestigation -> WorkState.UNDER_INVESTIGATION
-        is Verdict.Affected -> if (resolution != null) WorkState.RESOLVED else WorkState.OPEN
+        is Verdict.Affected ->
+            when {
+                resolution != null -> WorkState.RESOLVED
+                verdict.disposition == Disposition.WONT_FIX -> WorkState.DISMISSED
+                else -> WorkState.OPEN
+            }
+
         is Verdict.NotAffected -> if (resolution != null) WorkState.RESOLVED else WorkState.DISMISSED
-        is Verdict.RiskAcceptable -> if (resolution != null) WorkState.RESOLVED else WorkState.DISMISSED
     }
 }
 
 private fun defineImpact(vulnEntry: VulnerabilityEntry): Impact =
-    when (vulnEntry.verdict) {
-        is Verdict.Affected -> Impact.Affected(vulnEntry.verdict.severity)
-        is Verdict.NotAffected -> Impact.NotAffected(vulnEntry.verdict.justification.value)
-        is Verdict.RiskAcceptable -> Impact.AcceptableRisk(vulnEntry.verdict.severity)
+    when (val verdict = vulnEntry.verdict) {
+        is Verdict.Affected ->
+            if (verdict.disposition == Disposition.WONT_FIX) {
+                Impact.AcceptableRisk(verdict.severity)
+            } else {
+                Impact.Affected(verdict.severity)
+            }
+
+        is Verdict.NotAffected -> Impact.NotAffected(verdict.justification.value)
         Verdict.UnderInvestigation -> Impact.Unknown
     }
