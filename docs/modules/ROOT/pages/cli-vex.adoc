@@ -1,0 +1,104 @@
+= vulnlog vex
+
+Generates a VEX (Vulnerability Exploitability eXchange) document for one release.
+
+[source]
+----
+vulnlog vex <file> --release <id> --format cyclonedx [-o <path>]
+----
+
+A VEX document states, for every vulnerability recorded in the Vulnlog file, whether the chosen release is actually affected.
+Consumers such as Dependency-Track import it to close out scanner findings the project has already triaged.
+The current output format is a standalone CycloneDX 1.7 BOM carrying a `vulnerabilities` array.
+
+[cols="2,3"]
+|===
+| Flag | Description
+
+| `--release <id>`
+| Release to generate the VEX document for. Must be defined in the `releases` section. Required.
+
+| `--format <value>`
+| Output format of the VEX document. Currently only `cyclonedx` (CycloneDX 1.7) is supported. Required.
+
+| `-o, --output <path>`
+| Output file path, or `-` to write to stdout. Defaults to `vex.cdx.json` in the current directory.
+
+| `-`
+| Use as the file argument to read from stdin.
+|===
+
+== Product identity
+
+The target release must declare at least one purl; the purls identify the product the statements apply to.
+When the release declares none, the command fails with an error, because the resulting document could not name its product.
+See xref:project-and-releases.adoc[Project and Releases] for declaring release purls.
+
+When a vulnerability carries tags, its statement applies only to the release purls that share a tag; purls without tags always apply.
+Vulnerabilities without tags apply to every purl of the release.
+This scopes a statement to the affected artifact when a release ships several.
+See xref:tags.adoc[Tags and Filtering].
+
+== Statement selection
+
+A vulnerability produces a statement when its earliest affected release is not newer than the target release.
+The order of the `releases` list is the timeline: earlier position means older release.
+Entries recorded only against later releases are left out; everything else stays in, so consumers keep receiving positive `not_affected` and `resolved` assurance.
+
+The analysis state derives from the verdict and the resolution:
+
+[cols="2,2,2"]
+|===
+| Verdict | Resolution | `analysis.state`
+
+| `not affected`
+| any
+| `not_affected`
+
+| `affected`
+| contained in the target release
+| `resolved`
+
+| `affected`
+| absent or in a later release
+| `exploitable`
+
+| `risk acceptable`
+| any
+| `exploitable`
+
+| none (under investigation)
+| any
+| `in_triage`
+|===
+
+For `not_affected` statements the Vulnlog justification translates to the closest CycloneDX justification, and the `analysis` text is carried as `analysis.detail`.
+
+== Document identity
+
+The command is stateless; identity lives in the output file.
+When the output file already exists and is a CycloneDX document, its `serialNumber` is kept and its `version` is incremented.
+When the regenerated document differs only in `version` and `metadata.timestamp`, the file is left untouched and the command reports `Unchanged`.
+A rerun in CI without YAML changes therefore never dirties the working tree.
+
+== Examples
+
+.Generate a CycloneDX VEX document for release 1.2.0
+[source]
+----
+vulnlog vex vulnlog.yaml --release 1.2.0 --format cyclonedx
+Wrote: vex.cdx.json
+----
+
+.Rerun without changes
+[source]
+----
+vulnlog vex vulnlog.yaml --release 1.2.0 --format cyclonedx
+Unchanged: vex.cdx.json
+----
+
+== See also
+
+- xref:project-and-releases.adoc[Project and Releases]
+- xref:verdicts-and-justifications.adoc[Verdicts and Justifications]
+- xref:tags.adoc[Tags and Filtering]

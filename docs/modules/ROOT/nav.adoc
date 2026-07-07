@@ -20,6 +20,7 @@
 ** xref:cli-fmt.adoc[fmt]
 ** xref:cli-suppress.adoc[suppress]
 ** xref:cli-report.adoc[report]
+** xref:cli-vex.adoc[vex]
 ** xref:cli-add.adoc[modify add]
 ** xref:cli-copy.adoc[modify copy]
 * Guides
