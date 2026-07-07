@@ -13,6 +13,7 @@ dependencies {
     api(libs.packageUrl)
     implementation(libs.snakeyamlEngine)
 
+    testImplementation(libs.jsonSchemaValidator)
     testImplementation(libs.kotestAssertionsCoreJvm)
     testImplementation(libs.kotestRunnerJunit5Jvm)
 }
