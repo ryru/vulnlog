@@ -4,8 +4,10 @@
 package dev.vulnlog.lib.core
 
 import dev.vulnlog.lib.model.Purl
+import dev.vulnlog.lib.model.PurlEntry
 import dev.vulnlog.lib.model.Release
 import dev.vulnlog.lib.model.Resolution
+import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.Verdict
 import dev.vulnlog.lib.model.VulnerabilityEntry
 import dev.vulnlog.lib.model.VulnlogFile
@@ -27,12 +29,26 @@ fun buildVexStatements(
     val releaseOrder = vulnlogFile.releases.map { it.id }
     val targetIndex = releaseOrder.indexOf(target)
     require(targetIndex >= 0) { "release '${target.value}' is not defined" }
-    val products = vulnlogFile.releases[targetIndex].purls.map { it.purl }
+    val purls = vulnlogFile.releases[targetIndex].purls
     return vulnlogFile.vulnerabilities
         .filter { entry -> concernsTarget(entry, releaseOrder, targetIndex) }
-        .map { entry -> toStatement(entry, releaseOrder, targetIndex, products) }
+        .map { entry -> toStatement(entry, releaseOrder, targetIndex, scopeProducts(purls, entry.tags)) }
         .sortedBy { statement -> statement.id.id }
 }
+
+/**
+ * Selects the release purls a vulnerability applies to. A shared tag between vulnerability and purl
+ * is enough to include the purl; purls without tags are always included; vulnerabilities without
+ * tags apply to every purl.
+ */
+private fun scopeProducts(
+    purls: List<PurlEntry>,
+    vulnerabilityTags: List<Tag>,
+): List<Purl> =
+    purls
+        .filter { entry ->
+            entry.tags.isEmpty() || vulnerabilityTags.isEmpty() || entry.tags.any(vulnerabilityTags::contains)
+        }.map { entry -> entry.purl }
 
 private fun concernsTarget(
     entry: VulnerabilityEntry,

@@ -11,6 +11,7 @@ import dev.vulnlog.lib.model.ReleaseEntry
 import dev.vulnlog.lib.model.Resolution
 import dev.vulnlog.lib.model.SchemaVersion
 import dev.vulnlog.lib.model.Severity
+import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.Verdict
 import dev.vulnlog.lib.model.VexJustification
 import dev.vulnlog.lib.model.VulnId
@@ -52,11 +53,13 @@ private fun vulnerability(
     resolution: Resolution? = null,
     analysis: String? = null,
     packages: List<Purl> = listOf(packagePurl),
+    tags: List<Tag> = emptyList(),
 ) = VulnerabilityEntry(
     id = id,
     releases = releases,
     packages = packages,
     reports = emptyList(),
+    tags = tags,
     analysis = analysis,
     verdict = verdict,
     resolution = resolution,
@@ -152,6 +155,47 @@ class VexStatementsTest :
             val statements = buildVexStatements(file, release1)
 
             statements.map { it.id.id } shouldBe listOf("CVE-2026-0002", "SNYK-JAVA-B-2")
+        }
+
+        test("a tagged vulnerability includes matching and untagged purls only") {
+            val cliPurl = Purl.Generic("pkg:generic/product-cli@1.0.0")
+            val pluginPurl = Purl.Generic("pkg:generic/product-plugin@1.0.0")
+            val untaggedPurl = Purl.Generic("pkg:generic/product@1.0.0")
+            val release =
+                ReleaseEntry(
+                    id = release1,
+                    purls =
+                        listOf(
+                            PurlEntry(cliPurl, tags = listOf(Tag("cli"))),
+                            PurlEntry(pluginPurl, tags = listOf(Tag("gradle plugin"))),
+                            PurlEntry(untaggedPurl),
+                        ),
+                )
+            val entry = vulnerability(tags = listOf(Tag("cli")))
+            val file = vulnlogFile(listOf(release), listOf(entry))
+
+            val statement = buildVexStatements(file, release1).first()
+
+            statement.products shouldBe listOf(cliPurl, untaggedPurl)
+        }
+
+        test("an untagged vulnerability includes every purl") {
+            val cliPurl = Purl.Generic("pkg:generic/product-cli@1.0.0")
+            val pluginPurl = Purl.Generic("pkg:generic/product-plugin@1.0.0")
+            val release =
+                ReleaseEntry(
+                    id = release1,
+                    purls =
+                        listOf(
+                            PurlEntry(cliPurl, tags = listOf(Tag("cli"))),
+                            PurlEntry(pluginPurl, tags = listOf(Tag("gradle plugin"))),
+                        ),
+                )
+            val file = vulnlogFile(listOf(release), listOf(vulnerability()))
+
+            val statement = buildVexStatements(file, release1).first()
+
+            statement.products shouldBe listOf(cliPurl, pluginPurl)
         }
 
         test("an undefined target release is rejected") {
