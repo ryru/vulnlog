@@ -63,10 +63,6 @@ The analysis state derives from the verdict and the resolution:
 | absent or in a later release
 | `exploitable`
 
-| `risk acceptable`
-| any
-| `exploitable`
-
 | none (under investigation)
 | any
 | `in_triage`
