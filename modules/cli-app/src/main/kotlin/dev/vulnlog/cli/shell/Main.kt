@@ -57,7 +57,7 @@ internal fun renderUnexpectedError(
 
 private fun VulnlogCli.echoSafely(message: String) =
     try {
-        echo(message, err = true)
+        echo(styleMessage(message), err = true)
     } catch (_: IllegalStateException) {
         System.err.println(message)
     }
