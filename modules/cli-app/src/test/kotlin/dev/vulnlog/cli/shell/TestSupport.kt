@@ -50,6 +50,42 @@ internal fun vulnlogYaml(
     """.trimIndent()
 
 /**
+ * Builds a Vulnlog YAML whose release declares purls, so that vex can identify the product.
+ */
+internal fun vulnlogYamlWithPurls(
+    releaseId: String = "1.0.0",
+    purl: String = "pkg:generic/acme-web-app@1.0.0",
+    cveId: String = "CVE-2026-1234",
+): String =
+    """
+    ---
+    schemaVersion: "1"
+
+    project:
+      organization: Acme Corp
+      name: Acme Web App
+      author: Acme Corp Security Team
+
+    releases:
+      - id: $releaseId
+        published_at: 2026-01-15
+        purls:
+          - purl: "$purl"
+
+    vulnerabilities:
+
+      - id: $cveId
+        releases: [ $releaseId ]
+        description: Remote code execution in example-lib
+        packages: [ "pkg:npm/example-lib@2.3.0" ]
+        reports:
+          - reporter: trivy
+        analysis: not reachable
+        verdict: not affected
+        justification: vulnerable code not in execute path
+    """.trimIndent()
+
+/**
  * Builds a Vulnlog YAML with reports from multiple reporters, so that suppress would emit more
  * than one file unless filtered.
  */

@@ -178,3 +178,18 @@ fun writeReport(
         throw ProgramResult(ExitCode.GENERAL_ERROR.code)
     }
 }
+
+fun writeVexDocument(
+    out: (String) -> Unit,
+    err: (String) -> Unit,
+    vexFile: FileOutputOption.File,
+    content: String,
+) {
+    try {
+        vexFile.path.writeText(content)
+        out(formatStatus(StatusVerb.WROTE, vexFile.path.toString()))
+    } catch (e: Exception) {
+        err(formatMessage(Severity.ERROR, "cannot write ${vexFile.path}: ${e.message}"))
+        throw ProgramResult(ExitCode.GENERAL_ERROR.code)
+    }
+}

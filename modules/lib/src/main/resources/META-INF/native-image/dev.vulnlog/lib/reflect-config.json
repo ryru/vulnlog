@@ -114,6 +114,42 @@
     "allDeclaredMethods": true
   },
   {
+    "name": "dev.vulnlog.lib.parse.vex.cyclonedx.dto.BomDto",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "dev.vulnlog.lib.parse.vex.cyclonedx.dto.MetadataDto",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "dev.vulnlog.lib.parse.vex.cyclonedx.dto.ComponentDto",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "dev.vulnlog.lib.parse.vex.cyclonedx.dto.VulnerabilityDto",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "dev.vulnlog.lib.parse.vex.cyclonedx.dto.AnalysisDto",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "dev.vulnlog.lib.parse.vex.cyclonedx.dto.AffectsDto",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
     "name": "kotlin.collections.EmptySet",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,

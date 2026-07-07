@@ -29,6 +29,7 @@ fun vulnlogCommand(): VulnlogCli =
         .subcommands(SuppressCommand())
         .subcommands(ReportCommand())
         .subcommands(ModifyCommand())
+        .subcommands(VexCommand())
 
 internal fun runVulnlog(
     cli: VulnlogCli,
