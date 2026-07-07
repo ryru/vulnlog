@@ -8,9 +8,11 @@ import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.parseInputOrFail
 import dev.vulnlog.gradle.internal.requireSingleVulnlogFile
 import dev.vulnlog.gradle.internal.validateParsedInputOrFailWithFailureOutput
+import dev.vulnlog.lib.core.StatusVerb
 import dev.vulnlog.lib.core.SuppressionFilter
 import dev.vulnlog.lib.core.buildSuppressionOutputs
 import dev.vulnlog.lib.core.collectSuppressedVulnerabilities
+import dev.vulnlog.lib.core.formatStatus
 import dev.vulnlog.lib.core.renderSuppressionExclusion
 import dev.vulnlog.lib.core.renderSuppressionWritten
 import dev.vulnlog.lib.parse.suppression.SuppressionWriter
@@ -82,6 +84,10 @@ abstract class VulnlogSuppressTask : DefaultTask() {
             sink.verbose(renderSuppressionExclusion(exclusion))
         }
         val outputs = suppressionResult.outputs
+        if (outputs.isEmpty()) {
+            logger.lifecycle(formatStatus(StatusVerb.UNCHANGED, "no suppression entries applicable"))
+            return
+        }
 
         val dir = outputDir.get().asFile
         dir.mkdirs()
@@ -89,7 +95,7 @@ abstract class VulnlogSuppressTask : DefaultTask() {
             val suppressionFile = SuppressionWriter.writeSuppressionOutput(suppressionOutput)
             val outputPath = dir.resolve(suppressionFile.fileName)
             outputPath.writeText(suppressionFile.content)
-            logger.lifecycle("Suppression file created at: ${outputPath.absolutePath}")
+            logger.lifecycle(formatStatus(StatusVerb.WROTE, outputPath.absolutePath))
             sink.verbose(renderSuppressionWritten(outputPath.path, suppressionOutput))
         }
     }

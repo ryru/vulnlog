@@ -8,8 +8,10 @@ import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.parseInputOrFail
 import dev.vulnlog.gradle.internal.requireNonEmptyVulnlogFiles
 import dev.vulnlog.gradle.internal.validateParsedInputOrFailWithFailureOutput
+import dev.vulnlog.lib.core.StatusVerb
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.collectReportingEntries
+import dev.vulnlog.lib.core.formatStatus
 import dev.vulnlog.lib.core.mergeReportingEntries
 import dev.vulnlog.lib.core.parseReporter
 import dev.vulnlog.lib.core.validateSharedProject
@@ -96,6 +98,6 @@ abstract class VulnlogReportTask : DefaultTask() {
         val out = outputFile.get().asFile
         out.parentFile?.mkdirs()
         out.writeText(reportContent)
-        logger.lifecycle("Report written to: ${out.absolutePath}")
+        logger.lifecycle(formatStatus(StatusVerb.WROTE, out.absolutePath))
     }
 }
