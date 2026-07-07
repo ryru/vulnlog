@@ -17,6 +17,10 @@ sealed interface Verdict {
          * Severity of the vulnerability.
          */
         val severity: Severity,
+        /**
+         * Stated remediation intent. Absence means the intent is not stated.
+         */
+        val disposition: Disposition? = null,
     ) : Verdict
 
     /**

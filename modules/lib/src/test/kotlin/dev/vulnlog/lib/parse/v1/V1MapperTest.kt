@@ -3,6 +3,7 @@
 
 package dev.vulnlog.lib.parse.v1
 
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Purl
 import dev.vulnlog.lib.model.PurlEntry
@@ -153,6 +154,38 @@ class V1MapperTest :
                         reports = emptyList(),
                     ),
                 )
+        }
+
+        test("an affected verdict with disposition writes the disposition token") {
+            val dto =
+                V1Mapper.vulnerabilityToDto(
+                    VulnerabilityEntry(
+                        id = VulnId.Cve("CVE-2024-1234"),
+                        releases = emptyList(),
+                        packages = emptyList(),
+                        reports = emptyList(),
+                        verdict = Verdict.Affected(Severity.HIGH, Disposition.WONT_FIX),
+                    ),
+                )
+
+            dto.verdict shouldBe "affected"
+            dto.severity shouldBe "high"
+            dto.disposition shouldBe "wont-fix"
+        }
+
+        test("an affected verdict without disposition writes no disposition key") {
+            val dto =
+                V1Mapper.vulnerabilityToDto(
+                    VulnerabilityEntry(
+                        id = VulnId.Cve("CVE-2024-1234"),
+                        releases = emptyList(),
+                        packages = emptyList(),
+                        reports = emptyList(),
+                        verdict = Verdict.Affected(Severity.HIGH),
+                    ),
+                )
+
+            dto.disposition shouldBe null
         }
 
         context("toDto — report mapping") {
@@ -347,6 +380,78 @@ class V1MapperTest :
                 toDomain(dto)
                     .vulnerabilities[0]
                     .verdict shouldBe Verdict.Affected(Severity.CRITICAL)
+            }
+
+            test("affected verdict with disposition maps to Affected carrying the disposition") {
+                val dto =
+                    minimalDto(
+                        vulnerabilities =
+                            listOf(
+                                VulnerabilityEntryDto(
+                                    "CVE-2021-1",
+                                    releases = emptyList(),
+                                    packages = emptyList(),
+                                    reports = emptyList(),
+                                    verdict = "affected",
+                                    severity = "low",
+                                    disposition = "wont-fix",
+                                ),
+                            ),
+                    )
+
+                toDomain(dto)
+                    .vulnerabilities[0]
+                    .verdict shouldBe Verdict.Affected(Severity.LOW, Disposition.WONT_FIX)
+            }
+
+            test("unknown disposition is rejected") {
+                val dto =
+                    minimalDto(
+                        vulnerabilities =
+                            listOf(
+                                VulnerabilityEntryDto(
+                                    "CVE-2021-1",
+                                    releases = emptyList(),
+                                    packages = emptyList(),
+                                    reports = emptyList(),
+                                    verdict = "affected",
+                                    severity = "low",
+                                    disposition = "maybe-fix",
+                                ),
+                            ),
+                    )
+
+                val invalid =
+                    V1Mapper
+                        .toDomain(defaultSchemaVersion, dto)
+                        .shouldBeInstanceOf<DomainMappingResult.Invalid>()
+                invalid.failures.single().path shouldBe "vulnerabilities[CVE-2021-1].disposition"
+                invalid.failures.single().message shouldBe "Invalid disposition: maybe-fix"
+            }
+
+            test("disposition with a non-affected verdict is rejected") {
+                val dto =
+                    minimalDto(
+                        vulnerabilities =
+                            listOf(
+                                VulnerabilityEntryDto(
+                                    "CVE-2021-1",
+                                    releases = emptyList(),
+                                    packages = emptyList(),
+                                    reports = emptyList(),
+                                    verdict = "not affected",
+                                    justification = "vulnerable code not present",
+                                    disposition = "wont-fix",
+                                ),
+                            ),
+                    )
+
+                val invalid =
+                    V1Mapper
+                        .toDomain(defaultSchemaVersion, dto)
+                        .shouldBeInstanceOf<DomainMappingResult.Invalid>()
+                invalid.failures.single().path shouldBe "vulnerabilities[CVE-2021-1].disposition"
+                invalid.failures.single().message shouldBe "Disposition requires verdict 'affected'."
             }
 
             test("risk acceptable verdict with severity maps to RiskAcceptable") {
