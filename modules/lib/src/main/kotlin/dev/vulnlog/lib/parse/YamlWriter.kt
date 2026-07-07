@@ -18,6 +18,9 @@ import tools.jackson.databind.ObjectMapper
  * The output is a pure function of the document data plus [includeSchemaHeader]: presentation found
  * in a source file, including YAML comments, is not carried over. The `# $schema:` header is the one
  * exception, kept only when [includeSchemaHeader] says the source had it; see [hasSchemaHeader].
+ *
+ * Deprecated spellings are written as found: rewriting them is the user's deliberate act, not a
+ * side effect of a write (see the migration guide in the user documentation).
  */
 object YamlWriter {
     fun write(
