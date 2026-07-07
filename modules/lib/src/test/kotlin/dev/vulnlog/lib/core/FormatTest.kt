@@ -262,4 +262,66 @@ class FormatTest :
             warning shouldContain "removed on write"
             warning shouldContain "comment"
         }
+
+        test("migrates the deprecated risk acceptable verdict to affected with wont-fix") {
+            val legacy =
+                """
+                ---
+                schemaVersion: "1"
+
+                project:
+                  organization: Acme
+                  name: App
+                  author: Sec
+
+                releases:
+                  - id: 1.0.0
+
+                vulnerabilities:
+
+                  - id: CVE-2026-0001
+                    releases: [1.0.0]
+                    packages: ["pkg:npm/example-lib@2.3.0"]
+                    reports:
+                      - reporter: trivy
+                    verdict: risk acceptable
+                    severity: low
+                """.trimIndent() + "\n"
+
+            val result = formatYaml(parsed(legacy), mapper).content
+
+            result shouldContain "verdict: affected"
+            result shouldContain "disposition: wont-fix"
+            result shouldNotContain "risk acceptable"
+        }
+
+        test("migrating the deprecated verdict is idempotent") {
+            val legacy =
+                """
+                ---
+                schemaVersion: "1"
+
+                project:
+                  organization: Acme
+                  name: App
+                  author: Sec
+
+                releases:
+                  - id: 1.0.0
+
+                vulnerabilities:
+
+                  - id: CVE-2026-0001
+                    releases: [1.0.0]
+                    packages: ["pkg:npm/example-lib@2.3.0"]
+                    reports:
+                      - reporter: trivy
+                    verdict: risk acceptable
+                    severity: low
+                """.trimIndent() + "\n"
+
+            val once = formatYaml(parsed(legacy), mapper)
+
+            formatYaml(parsed(once), mapper) shouldBe once
+        }
     })

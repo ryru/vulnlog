@@ -18,6 +18,9 @@ import tools.jackson.databind.ObjectMapper
  * The output is a pure function of the document data plus [includeSchemaHeader]: presentation found
  * in a source file, including YAML comments, is not carried over. The `# $schema:` header is the one
  * exception, kept only when [includeSchemaHeader] says the source had it; see [hasSchemaHeader].
+ *
+ * Deprecated spellings are not part of the canonical form: every write emits their replacement, so
+ * one `vulnlog fmt` migrates a file in place.
  */
 object YamlWriter {
     fun write(
@@ -31,17 +34,30 @@ object YamlWriter {
         mapper: ObjectMapper,
         includeSchemaHeader: Boolean = true,
     ): String {
+        val migrated = migrateDeprecatedTokens(dto)
         val sections =
             buildList {
-                add(CanonicalYaml.renderSection("schemaVersion", dto.schemaVersion, mapper).trimEnd())
-                add(CanonicalYaml.renderSection("project", dto.project, mapper).trimEnd())
-                dto.tags?.let { add(CanonicalYaml.renderSection("tags", it, mapper).trimEnd()) }
-                add(CanonicalYaml.renderSection("releases", dto.releases, mapper).trimEnd())
-                add(vulnerabilitiesSection(dto.vulnerabilities, mapper))
+                add(CanonicalYaml.renderSection("schemaVersion", migrated.schemaVersion, mapper).trimEnd())
+                add(CanonicalYaml.renderSection("project", migrated.project, mapper).trimEnd())
+                migrated.tags?.let { add(CanonicalYaml.renderSection("tags", it, mapper).trimEnd()) }
+                add(CanonicalYaml.renderSection("releases", migrated.releases, mapper).trimEnd())
+                add(vulnerabilitiesSection(migrated.vulnerabilities, mapper))
             }
-        val header = if (includeSchemaHeader) schemaHeader(dto.schemaVersion) + "\n" else ""
+        val header = if (includeSchemaHeader) schemaHeader(migrated.schemaVersion) + "\n" else ""
         return header + "---\n" + sections.joinToString("\n\n") + "\n"
     }
+
+    private fun migrateDeprecatedTokens(dto: VulnlogFileV1Dto): VulnlogFileV1Dto =
+        dto.copy(
+            vulnerabilities =
+                dto.vulnerabilities.map { entry ->
+                    if (entry.verdict == "risk acceptable") {
+                        entry.copy(verdict = "affected", disposition = "wont-fix")
+                    } else {
+                        entry
+                    }
+                },
+        )
 
     fun schemaHeader(schemaVersion: String): String =
         "# \$schema: https://vulnlog.dev/schema/vulnlog-v${schemaVersion.substringBefore('.')}.json"
