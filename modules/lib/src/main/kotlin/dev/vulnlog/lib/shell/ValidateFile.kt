@@ -20,6 +20,7 @@ fun validateFiles(fileToResult: Map<FileInputOption, ParseResult.Ok>): Validatio
                 input.sourceFile().name,
                 parsed.content,
                 parsed.rootNode,
+                parsed.dto,
             )
         }
     val results = validate(contexts.values.toList())
