@@ -56,8 +56,18 @@ object V1Mapper {
             ReleaseEntryDto(
                 id = it.id.value,
                 publishedAt = it.publicationDate,
+                purls = purlsToDto(it.purls),
             )
         }
+
+    private fun purlsToDto(purls: List<PurlEntry>): List<ReleasePurlEntryDto>? =
+        purls
+            .map { entry ->
+                ReleasePurlEntryDto(
+                    purl = entry.purl.value,
+                    tags = entry.tags.map(Tag::value).takeIf { it.isNotEmpty() },
+                )
+            }.takeIf { it.isNotEmpty() }
 
     private fun vulnerabilitiesToDto(vulnerabilities: List<VulnerabilityEntry>): List<VulnerabilityEntryDto> =
         vulnerabilities.map(::vulnerabilityToDto)
@@ -190,7 +200,7 @@ object V1Mapper {
         purls?.mapIndexedNotNull { index, entry ->
             failures
                 .attempt("$parentPath.purls[$index].purl") { parsePurl(entry.purl) }
-                ?.let { purl -> PurlEntry(purl = purl, tags = entry.tags.map(::Tag)) }
+                ?.let { purl -> PurlEntry(purl = purl, tags = entry.tags.orEmpty().map(::Tag)) }
         } ?: emptyList()
 
     private fun vulnerabilitiesToDomain(

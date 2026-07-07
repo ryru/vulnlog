@@ -564,4 +564,28 @@ class VulnlogParserTest :
                 parseVulnlogFile(mapper, yaml).shouldBeInstanceOf<ParseResult.Ok>()
             }
         }
+
+        context("release purls") {
+            test("a purl entry without tags parses to an empty tag list") {
+                val yaml =
+                    VulnlogFileRaw(
+                        minimalV1.content.replace(
+                            "releases: []",
+                            """
+                            releases:
+                              - id: v1.0
+                                purls:
+                                  - purl: "pkg:generic/widget@1.0"
+                            """.trimIndent(),
+                        ),
+                    )
+
+                val parsed = parseVulnlogFile(mapper, yaml).shouldBeInstanceOf<ParseResult.Ok>()
+                parsed.content.releases
+                    .first()
+                    .purls
+                    .first()
+                    .tags shouldBe emptyList()
+            }
+        }
     })

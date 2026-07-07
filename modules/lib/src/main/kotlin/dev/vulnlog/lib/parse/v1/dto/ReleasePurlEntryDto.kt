@@ -3,7 +3,10 @@
 
 package dev.vulnlog.lib.parse.v1.dto
 
+import com.fasterxml.jackson.annotation.JsonInclude
+
 data class ReleasePurlEntryDto(
     val purl: String,
-    val tags: List<String>,
+    @param:JsonInclude(JsonInclude.Include.NON_NULL)
+    val tags: List<String>? = null,
 )
