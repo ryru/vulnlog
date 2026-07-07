@@ -10,6 +10,7 @@ import dev.vulnlog.lib.core.parsePurl
 import dev.vulnlog.lib.core.parseReporter
 import dev.vulnlog.lib.core.parseVulnId
 import dev.vulnlog.lib.core.shortenSchemaVersion
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Purl
 import dev.vulnlog.lib.model.PurlEntry
@@ -92,6 +93,7 @@ object V1Mapper {
             analyzedAt = entry.analyzedAt,
             verdict = verdictToString(entry.verdict),
             severity = severityToString(entry.verdict),
+            disposition = dispositionToString(entry.verdict),
             justification = justificationToString(entry.verdict),
             resolution = entry.resolution?.let { resolutionToDto(it) },
             comment = entry.comment,
@@ -235,24 +237,41 @@ object V1Mapper {
         path: String,
         dto: VulnerabilityEntryDto,
         failures: FailureCollector,
-    ): Verdict? =
-        when (dto.verdict) {
-            "affected" -> failures.attempt("$path.severity") { Verdict.Affected(parseSeverity(dto.severity)) }
+    ): Verdict? {
+        if (dto.verdict != "affected" && dto.disposition != null) {
+            failures.report("$path.disposition", "Disposition requires verdict 'affected'.")
+            return null
+        }
+        return when (dto.verdict) {
+            "affected" -> affectedToDomain(path, dto, failures)
             "not affected" ->
                 failures.attempt(
                     "$path.justification",
                 ) { Verdict.NotAffected(parseVexJustification(dto.justification)) }
 
+            // Deprecated since the disposition axis; accepted until 1.0 and rewritten on canonical writes.
             "risk acceptable" ->
                 failures.attempt(
                     "$path.severity",
-                ) { Verdict.RiskAcceptable(parseSeverity(dto.severity)) }
+                ) { Verdict.Affected(parseSeverity(dto.severity), Disposition.WONT_FIX) }
             "under_investigation", null -> Verdict.UnderInvestigation
             else -> {
                 failures.report("$path.verdict", "Invalid verdict: ${dto.verdict}")
                 null
             }
         }
+    }
+
+    private fun affectedToDomain(
+        path: String,
+        dto: VulnerabilityEntryDto,
+        failures: FailureCollector,
+    ): Verdict.Affected? {
+        val severity = failures.attempt("$path.severity") { parseSeverity(dto.severity) }
+        val disposition = dto.disposition?.let { failures.attempt("$path.disposition") { parseDisposition(it) } }
+        if (severity == null || (dto.disposition != null && disposition == null)) return null
+        return Verdict.Affected(severity, disposition)
+    }
 
     private fun resolutionToDomain(dto: ResolutionDto?): Resolution? =
         dto?.let {
@@ -282,6 +301,13 @@ object V1Mapper {
             else -> throw IllegalArgumentException("Invalid severity: $severity")
         }
 
+    private fun parseDisposition(disposition: String): Disposition =
+        when (disposition) {
+            "will-fix" -> Disposition.WILL_FIX
+            "wont-fix" -> Disposition.WONT_FIX
+            else -> throw IllegalArgumentException("Invalid disposition: $disposition")
+        }
+
     private fun parseVexJustification(justification: String?): VexJustification =
         when (justification) {
             "component not present" -> VexJustification.COMPONENT_NOT_PRESENT
@@ -298,14 +324,24 @@ object V1Mapper {
         when (verdict) {
             is Verdict.Affected -> "affected"
             is Verdict.NotAffected -> "not affected"
-            is Verdict.RiskAcceptable -> "risk acceptable"
             is Verdict.UnderInvestigation -> null
         }
 
     private fun severityToString(verdict: Verdict): String? =
         when (verdict) {
             is Verdict.Affected -> verdict.severity.name.lowercase()
-            is Verdict.RiskAcceptable -> verdict.severity.name.lowercase()
+            else -> null
+        }
+
+    private fun dispositionToString(verdict: Verdict): String? =
+        when (verdict) {
+            is Verdict.Affected ->
+                when (verdict.disposition) {
+                    Disposition.WILL_FIX -> "will-fix"
+                    Disposition.WONT_FIX -> "wont-fix"
+                    null -> null
+                }
+
             else -> null
         }
 

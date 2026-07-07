@@ -3,6 +3,7 @@
 
 package dev.vulnlog.lib.parse
 
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.ParseValidationVersion
 import dev.vulnlog.lib.model.SchemaVersion
 import dev.vulnlog.lib.model.Severity
@@ -261,7 +262,7 @@ class VulnlogParserTest :
                     Verdict.NotAffected(VexJustification.COMPONENT_NOT_PRESENT)
             }
 
-            test("vulnerability with risk acceptable verdict and severity is parsed") {
+            test("legacy risk acceptable verdict parses to affected with wont-fix disposition") {
                 val yaml =
                     VulnlogFileRaw(
                         """
@@ -284,7 +285,7 @@ class VulnlogParserTest :
                 parseVulnlogFile(mapper, yaml)
                     .shouldBeInstanceOf<ParseResult.Ok>()
                     .content.vulnerabilities[0]
-                    .verdict shouldBe Verdict.RiskAcceptable(Severity.MEDIUM)
+                    .verdict shouldBe Verdict.Affected(Severity.MEDIUM, Disposition.WONT_FIX)
             }
 
             test("vulnerability with unrecognized id returns a parse error") {

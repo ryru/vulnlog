@@ -3,25 +3,31 @@
 
 package dev.vulnlog.lib.core
 
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.ParseValidationVersion
 import dev.vulnlog.lib.model.ReporterType
+import dev.vulnlog.lib.model.Verdict
 import dev.vulnlog.lib.model.VulnId
 import dev.vulnlog.lib.model.VulnlogFile
+import dev.vulnlog.lib.parse.v1.dto.VulnlogFileV1Dto
 import dev.vulnlog.lib.result.Rule
 import dev.vulnlog.lib.result.Severity
 import dev.vulnlog.lib.result.ValidationFinding
 import dev.vulnlog.lib.result.ValidationResult
 import org.snakeyaml.engine.v2.nodes.MappingNode
+import dev.vulnlog.lib.model.Severity as VulnSeverity
 
 /**
  * One file under validation. The node tree lets future rules resolve finding locations; it is
- * absent when the file was built from domain objects rather than parsed text.
+ * absent when the file was built from domain objects rather than parsed text. The dto preserves
+ * the raw tokens for rules about spellings the domain no longer distinguishes (deprecations).
  */
 data class VulnlogFileContext(
     val validationVersion: ParseValidationVersion,
     val fileName: String,
     val vulnlogFile: VulnlogFile,
     val rootNode: MappingNode? = null,
+    val dto: VulnlogFileV1Dto? = null,
 )
 
 /**
@@ -35,8 +41,10 @@ fun validate(contexts: List<VulnlogFileContext>): Map<VulnlogFileContext, Valida
 fun validate(vulnlogContext: VulnlogFileContext): ValidationResult {
     val findings =
         when (vulnlogContext.validationVersion) {
-            ParseValidationVersion.V1 -> v1Rules
-        }.flatMap { rule -> rule(vulnlogContext.vulnlogFile) }
+            ParseValidationVersion.V1 ->
+                v1Rules.flatMap { rule -> rule(vulnlogContext.vulnlogFile) } +
+                    v1DtoRules.flatMap { rule -> rule(vulnlogContext.dto) }
+        }
     return ValidationResult(findings)
 }
 
@@ -54,7 +62,46 @@ private val v1Rules =
         ::validateTagInReleasesIsDefined,
         ::validateTagInVulnerabilityIsDefined,
         ::validateSourceInReportIsDefinedWhenOther,
+        ::validateNoAcceptedCriticalRisk,
     )
+
+/** Rules over the raw tokens; they see spellings the domain mapping already normalized away. */
+private val v1DtoRules =
+    listOf(
+        ::validateNoDeprecatedVerdict,
+    )
+
+private fun validateNoDeprecatedVerdict(dto: VulnlogFileV1Dto?): List<ValidationFinding> =
+    dto
+        ?.vulnerabilities
+        .orEmpty()
+        .filter { entry -> entry.verdict == "risk acceptable" }
+        .map { entry ->
+            ValidationFinding(
+                severity = Severity.WARNING,
+                rule = Rule.DEPRECATED_VERDICT,
+                path = "vulnerabilities[${entry.id}].verdict",
+                message =
+                    "Deprecated verdict 'risk acceptable'; use verdict 'affected' with disposition 'wont-fix' " +
+                        "instead. The legacy value is accepted until the 1.0 release.",
+            )
+        }
+
+private fun validateNoAcceptedCriticalRisk(file: VulnlogFile): List<ValidationFinding> =
+    file.vulnerabilities
+        .filter { vuln ->
+            val verdict = vuln.verdict
+            verdict is Verdict.Affected &&
+                verdict.severity == VulnSeverity.CRITICAL &&
+                verdict.disposition == Disposition.WONT_FIX
+        }.map { vuln ->
+            ValidationFinding(
+                severity = Severity.INFO,
+                rule = Rule.ACCEPTED_CRITICAL_RISK,
+                path = "vulnerabilities[${vuln.id.canonical()}].disposition",
+                message = "A critical severity vulnerability is marked 'wont-fix'.",
+            )
+        }
 
 private fun validateEveryReleaseIsReferenced(file: VulnlogFile): List<ValidationFinding> {
     val usedReleases = file.vulnerabilities.flatMap { vulnerability -> vulnerability.releases }.toSet()

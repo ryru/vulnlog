@@ -3,6 +3,7 @@
 
 package dev.vulnlog.lib.core
 
+import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.ParseValidationVersion
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Purl
@@ -18,6 +19,9 @@ import dev.vulnlog.lib.model.Verdict
 import dev.vulnlog.lib.model.VulnId
 import dev.vulnlog.lib.model.VulnerabilityEntry
 import dev.vulnlog.lib.model.VulnlogFile
+import dev.vulnlog.lib.parse.v1.dto.ProjectDto
+import dev.vulnlog.lib.parse.v1.dto.VulnerabilityEntryDto
+import dev.vulnlog.lib.parse.v1.dto.VulnlogFileV1Dto
 import dev.vulnlog.lib.result.Rule
 import dev.vulnlog.lib.result.Severity
 import io.kotest.core.spec.style.FunSpec
@@ -26,6 +30,7 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import java.time.LocalDate
+import dev.vulnlog.lib.model.Severity as VulnSeverity
 
 private val defaultSchema = SchemaVersion(1, 0)
 
@@ -681,6 +686,75 @@ class ValidatorTest :
                             ),
                     )
                 validate(context(file)).errors.shouldBeEmpty()
+            }
+        }
+
+        context("deprecated verdict") {
+            test("a raw risk acceptable verdict produces a deprecation warning") {
+                val dto =
+                    VulnlogFileV1Dto(
+                        schemaVersion = "1",
+                        project = ProjectDto("org", "project", "author"),
+                        releases = emptyList(),
+                        vulnerabilities =
+                            listOf(
+                                VulnerabilityEntryDto(
+                                    "CVE-2021-1",
+                                    releases = emptyList(),
+                                    packages = emptyList(),
+                                    reports = emptyList(),
+                                    verdict = "risk acceptable",
+                                    severity = "low",
+                                ),
+                            ),
+                    )
+
+                val warnings = validate(context(emptyFile()).copy(dto = dto)).warnings
+
+                warnings shouldHaveSize 1
+                warnings[0].rule shouldBe Rule.DEPRECATED_VERDICT
+                warnings[0].path shouldBe "vulnerabilities[CVE-2021-1].verdict"
+                warnings[0].message shouldContain "disposition 'wont-fix'"
+            }
+
+            test("a file without dto context produces no deprecation findings") {
+                validate(context(emptyFile())).warnings.shouldBeEmpty()
+            }
+        }
+
+        context("accepted critical risk") {
+            fun affectedVulnerability(verdict: Verdict) =
+                VulnerabilityEntry(
+                    id = VulnId.Cve("CVE-2021-1"),
+                    releases = emptyList(),
+                    packages = emptyList(),
+                    reports = emptyList(),
+                    verdict = verdict,
+                )
+
+            test("wont-fix on a critical vulnerability produces an info finding") {
+                val verdict = Verdict.Affected(VulnSeverity.CRITICAL, Disposition.WONT_FIX)
+                val file = emptyFile().copy(vulnerabilities = listOf(affectedVulnerability(verdict)))
+
+                val infos = validate(context(file)).infos
+
+                infos shouldHaveSize 1
+                infos[0].rule shouldBe Rule.ACCEPTED_CRITICAL_RISK
+                infos[0].path shouldBe "vulnerabilities[CVE-2021-1].disposition"
+            }
+
+            test("wont-fix on a non-critical vulnerability produces no finding") {
+                val verdict = Verdict.Affected(VulnSeverity.HIGH, Disposition.WONT_FIX)
+                val file = emptyFile().copy(vulnerabilities = listOf(affectedVulnerability(verdict)))
+
+                validate(context(file)).infos.shouldBeEmpty()
+            }
+
+            test("critical without wont-fix produces no finding") {
+                val verdict = Verdict.Affected(VulnSeverity.CRITICAL)
+                val file = emptyFile().copy(vulnerabilities = listOf(affectedVulnerability(verdict)))
+
+                validate(context(file)).infos.shouldBeEmpty()
             }
         }
     })

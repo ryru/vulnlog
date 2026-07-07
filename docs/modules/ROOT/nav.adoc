@@ -45,5 +45,6 @@
 ** xref:troubleshooting.adoc[Troubleshooting]
 * Upgrade
 ** xref:upgrade/migrate-from-kotlin-dsl.adoc[Migrate from the Kotlin DSL]
+** xref:upgrade/migrate-risk-acceptable.adoc[Migrate from the 'risk acceptable' verdict]
 * xref:glossary.adoc[Glossary]
 * https://github.com/vulnlog/vulnlog/discussions[Get help]
