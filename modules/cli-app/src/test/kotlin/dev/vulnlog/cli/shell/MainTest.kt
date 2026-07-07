@@ -73,7 +73,7 @@ class MainTest :
         context("runVulnlog") {
 
             test("returns success for a completed command") {
-                runVulnlog(cliWith(OkCommand()), listOf("ok")) shouldBe ExitCode.SUCCESS.ordinal
+                runVulnlog(cliWith(OkCommand()), listOf("ok")) shouldBe ExitCode.SUCCESS.code
             }
 
             test("reports an unexpected exception as a single error line") {
@@ -81,7 +81,7 @@ class MainTest :
 
                 val exit = runVulnlog(cliWith(BoomCommand()), listOf("boom"), lines::add)
 
-                exit shouldBe ExitCode.GENERAL_ERROR.ordinal
+                exit shouldBe ExitCode.GENERAL_ERROR.code
                 lines shouldBe listOf("error: kaboom")
             }
 
@@ -90,7 +90,7 @@ class MainTest :
 
                 val exit = runVulnlog(cliWith(BoomCommand()), listOf("-vv", "boom"), lines::add)
 
-                exit shouldBe ExitCode.GENERAL_ERROR.ordinal
+                exit shouldBe ExitCode.GENERAL_ERROR.code
                 lines shouldHaveSize 2
                 lines[0] shouldBe "error: kaboom"
                 lines[1] shouldContain "IllegalStateException"
@@ -101,7 +101,7 @@ class MainTest :
 
                 val exit = runVulnlog(cliWith(BoomCommand()), listOf("--debug", "boom"), lines::add)
 
-                exit shouldBe ExitCode.GENERAL_ERROR.ordinal
+                exit shouldBe ExitCode.GENERAL_ERROR.code
                 lines shouldHaveSize 2
             }
 
@@ -111,7 +111,7 @@ class MainTest :
                         runVulnlog(cliWith(BoomCommand()), listOf("boom"))
                     }
 
-                exit shouldBe ExitCode.GENERAL_ERROR.ordinal
+                exit shouldBe ExitCode.GENERAL_ERROR.code
                 stderr shouldContain "error: kaboom"
                 stderr shouldNotContain "\tat "
             }
@@ -122,7 +122,7 @@ class MainTest :
                         runVulnlog(cliWith(OkCommand()), listOf("nope"))
                     }
 
-                exit shouldBe ExitCode.GENERAL_ERROR.ordinal
+                exit shouldBe ExitCode.GENERAL_ERROR.code
                 stderr shouldContain "nope"
             }
 
@@ -132,7 +132,7 @@ class MainTest :
                         runVulnlog(cliWith(OkCommand()), listOf("--help"))
                     }
 
-                exit shouldBe ExitCode.SUCCESS.ordinal
+                exit shouldBe ExitCode.SUCCESS.code
                 stdout shouldContain "Usage"
             }
         }

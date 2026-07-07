@@ -45,7 +45,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
         help =
             """
             |Check Vulnlog file(s) formatting without modifying them.
-            |Exit code ${ExitCode.FORMAT_ERROR.ordinal} if any file is not already formatted.
+            |Exit code ${ExitCode.FORMAT_ERROR.code} if any file is not already formatted.
             """.trimMargin(),
     ).flag(default = false)
 
@@ -94,7 +94,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
         }
 
         if (isCheck && anyUnformatted) {
-            throw ProgramResult(ExitCode.FORMAT_ERROR.ordinal)
+            throw ProgramResult(ExitCode.FORMAT_ERROR.code)
         }
     }
 

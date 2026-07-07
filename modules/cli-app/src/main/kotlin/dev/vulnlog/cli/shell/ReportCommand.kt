@@ -61,7 +61,7 @@ class ReportCommand : CliktCommand(name = "report") {
                         formatMessage(Severity.ERROR, "all input files must share the same project metadata"),
                         err = true,
                     )
-                    throw ProgramResult(ExitCode.VALIDATION_ERROR.ordinal)
+                    throw ProgramResult(ExitCode.VALIDATION_ERROR.code)
                 }
 
         val filter = resolveFilter(filterOptions, vulnlogFiles.first())
