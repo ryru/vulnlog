@@ -149,7 +149,7 @@ class FmtCommandTest :
                     val result = FmtCommand().test("--check ${file.absolutePath}")
 
                     result.statusCode shouldBe ExitCode.FORMAT_ERROR.ordinal
-                    result.stdout shouldContain "Can be reformatted"
+                    result.stderr shouldContain "warning: ${file.absolutePath}: not canonically formatted"
                     // unchanged on disk
                     file.readText() shouldBe UGLY_YAML
                 }
@@ -161,12 +161,12 @@ class FmtCommandTest :
 
                     result.statusCode shouldBe ExitCode.FORMAT_ERROR.ordinal
                     // block single-element list
-                    result.stdout shouldContain "[non-canonical-array-style] vulnerabilities[CVE-2026-1234].releases"
-                    result.stdout shouldContain "flow array"
+                    result.stderr shouldContain "[non-canonical-array-style] vulnerabilities[CVE-2026-1234].releases"
+                    result.stderr shouldContain "flow array"
                     // long quoted prose should be a folded block
-                    result.stdout shouldContain "[non-canonical-block-scalar] vulnerabilities[CVE-2026-1234].analysis"
-                    result.stdout shouldContain "folded block"
-                    result.stdout shouldContain "Line "
+                    result.stderr shouldContain "[non-canonical-block-scalar] vulnerabilities[CVE-2026-1234].analysis"
+                    result.stderr shouldContain "folded block"
+                    result.stderr shouldContain "Line "
                 }
             }
 
@@ -177,7 +177,7 @@ class FmtCommandTest :
                     val result = FmtCommand().test("--check ${file.absolutePath}")
 
                     result.statusCode shouldBe 0
-                    result.stdout shouldNotContain "non-canonical"
+                    result.stderr shouldNotContain "non-canonical"
                 }
             }
 
@@ -188,7 +188,7 @@ class FmtCommandTest :
                     val result = FmtCommand().test("--check ${file.absolutePath}")
 
                     result.statusCode shouldBe ExitCode.FORMAT_ERROR.ordinal
-                    result.stdout shouldContain "Can be reformatted"
+                    result.stderr shouldContain "warning: ${file.absolutePath}: not canonically formatted"
                 }
             }
 

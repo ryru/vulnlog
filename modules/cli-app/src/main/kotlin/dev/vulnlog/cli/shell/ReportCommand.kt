@@ -18,11 +18,13 @@ import com.github.ajalt.clikt.parameters.options.option
 import dev.vulnlog.cli.BuildInfo
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.collectReportingEntries
+import dev.vulnlog.lib.core.formatMessage
 import dev.vulnlog.lib.core.mergeReportingEntries
 import dev.vulnlog.lib.core.validateSharedProject
 import dev.vulnlog.lib.parse.reporting.HtmlReportMapper.toDto
 import dev.vulnlog.lib.parse.reporting.HtmlReportWriter.renderHtmlReport
 import dev.vulnlog.lib.parse.reporting.dto.FilterDataDto
+import dev.vulnlog.lib.result.Severity
 import dev.vulnlog.lib.shell.FileInputOption
 import dev.vulnlog.lib.shell.FileOutputOption
 import dev.vulnlog.lib.shell.sourceFile
@@ -55,7 +57,10 @@ class ReportCommand : CliktCommand(name = "report") {
         val project =
             validateSharedProject(vulnlogFiles)
                 ?: run {
-                    echo("Error: All input files must share the same project metadata.", err = true)
+                    echo(
+                        formatMessage(Severity.ERROR, "all input files must share the same project metadata"),
+                        err = true,
+                    )
                     throw ProgramResult(ExitCode.VALIDATION_ERROR.ordinal)
                 }
 

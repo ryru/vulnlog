@@ -16,11 +16,14 @@ import dev.vulnlog.lib.core.FormatOutcome
 import dev.vulnlog.lib.core.StatusVerb
 import dev.vulnlog.lib.core.checkFormat
 import dev.vulnlog.lib.core.formatCommentsDroppedWarning
+import dev.vulnlog.lib.core.formatFinding
 import dev.vulnlog.lib.core.formatStatus
 import dev.vulnlog.lib.core.formatYamlOutcome
 import dev.vulnlog.lib.core.renderFormatFinding
 import dev.vulnlog.lib.parse.createYamlMapper
 import dev.vulnlog.lib.parse.hasYamlComments
+import dev.vulnlog.lib.result.FormatFinding
+import dev.vulnlog.lib.result.Severity
 import dev.vulnlog.lib.shell.FileInputOption
 import kotlin.io.path.writeText
 
@@ -63,10 +66,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
                         is FormatOutcome.Unchanged -> if (!isCheck) echo(raw.content, trailingNewline = false)
                         is FormatOutcome.Reformatted ->
                             if (isCheck) {
-                                echo("Can be reformatted: <stdin>", err = true)
-                                checkFormat(parsedInput, mapper).forEach { finding ->
-                                    echo("  ${renderFormatFinding(finding)}", err = true)
-                                }
+                                echoFormatCheckFindings("<stdin>", checkFormat(parsedInput, mapper))
                             } else {
                                 if (hasYamlComments(parsedInput.rootNode)) {
                                     echo(formatCommentsDroppedWarning("<stdin>"), err = true)
@@ -81,10 +81,7 @@ class FmtCommand : CliktCommand(name = "fmt") {
                             echoStatus(formatStatus(StatusVerb.UNCHANGED, input.path.toString()))
                         is FormatOutcome.Reformatted ->
                             if (isCheck) {
-                                echo("Can be reformatted: ${input.path}")
-                                checkFormat(parsedInput, mapper).forEach { finding ->
-                                    echo("  ${renderFormatFinding(finding)}")
-                                }
+                                echoFormatCheckFindings(input.path.toString(), checkFormat(parsedInput, mapper))
                             } else {
                                 if (hasYamlComments(parsedInput.rootNode)) {
                                     echo(formatCommentsDroppedWarning(input.path.toString()), err = true)
@@ -99,5 +96,13 @@ class FmtCommand : CliktCommand(name = "fmt") {
         if (isCheck && anyUnformatted) {
             throw ProgramResult(ExitCode.FORMAT_ERROR.ordinal)
         }
+    }
+
+    private fun echoFormatCheckFindings(
+        source: String,
+        findings: List<FormatFinding>,
+    ) {
+        echo(formatFinding(Severity.WARNING, source, message = "not canonically formatted"), err = true)
+        findings.forEach { finding -> echo("  ${renderFormatFinding(finding)}", err = true) }
     }
 }
