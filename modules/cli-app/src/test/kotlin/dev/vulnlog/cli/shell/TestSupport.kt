@@ -50,6 +50,87 @@ internal fun vulnlogYaml(
     """.trimIndent()
 
 /**
+ * Builds a Vulnlog YAML whose release declares purls, so that vex can identify the product.
+ */
+internal fun vulnlogYamlWithPurls(
+    releaseId: String = "1.0.0",
+    purl: String = "pkg:generic/acme-web-app@1.0.0",
+    cveId: String = "CVE-2026-1234",
+): String =
+    """
+    ---
+    schemaVersion: "1"
+
+    project:
+      organization: Acme Corp
+      name: Acme Web App
+      author: Acme Corp Security Team
+
+    releases:
+      - id: $releaseId
+        published_at: 2026-01-15
+        purls:
+          - purl: "$purl"
+
+    vulnerabilities:
+
+      - id: $cveId
+        releases: [ $releaseId ]
+        description: Remote code execution in example-lib
+        packages: [ "pkg:npm/example-lib@2.3.0" ]
+        reports:
+          - reporter: trivy
+        analysis: not reachable
+        verdict: not affected
+        justification: vulnerable code not in execute path
+    """.trimIndent()
+
+/**
+ * Builds a Vulnlog YAML whose release ships two tagged artifacts, so that vex can be scoped to
+ * one of them. The vulnerability carries the 'gradle plugin' tag.
+ */
+internal fun vulnlogYamlWithTaggedPurls(): String =
+    """
+    ---
+    schemaVersion: "1"
+
+    project:
+      organization: Acme Corp
+      name: Acme Web App
+      author: Acme Corp Security Team
+
+    tags:
+      - id: cli
+        description: The CLI artifact
+      - id: gradle plugin
+        description: The Gradle plugin artifact
+      - id: container
+        description: A planned artifact no purl carries yet
+
+    releases:
+      - id: 1.0.0
+        published_at: 2026-01-15
+        purls:
+          - purl: "pkg:generic/acme-cli@1.0.0"
+            tags: [cli]
+          - purl: "pkg:maven/com.acme/acme-plugin@1.0.0"
+            tags: [gradle plugin]
+
+    vulnerabilities:
+
+      - id: CVE-2026-1234
+        releases: [ 1.0.0 ]
+        description: Remote code execution in example-lib
+        packages: [ "pkg:npm/example-lib@2.3.0" ]
+        reports:
+          - reporter: trivy
+        tags: [ gradle plugin ]
+        analysis: not reachable
+        verdict: not affected
+        justification: vulnerable code not in execute path
+    """.trimIndent()
+
+/**
  * Builds a Vulnlog YAML with reports from multiple reporters, so that suppress would emit more
  * than one file unless filtered.
  */

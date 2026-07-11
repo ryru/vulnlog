@@ -7,6 +7,7 @@ import dev.vulnlog.lib.core.VulnlogFilter
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.parseReporter
 import dev.vulnlog.lib.model.Release
+import dev.vulnlog.lib.model.ReleaseEntry
 import dev.vulnlog.lib.model.ReporterType
 import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.VulnlogFile
@@ -48,6 +49,30 @@ fun resolveReleaseFilter(
     } else {
         emptySet()
     }
+
+/**
+ * Resolves a single target release, e.g. for VEX generation. Unlike [resolveReleaseFilter] the
+ * result is exactly the named release, not the range up to it.
+ *
+ * @param releaseOption The release identifier string naming the target release.
+ * @param vulnlogFile The parsed Vulnlog file containing the release definitions.
+ * @return The release entry with the given id.
+ * @throws FilterValidationException If the specified release is not valid or does not exist in the Vulnlog file.
+ */
+fun resolveTargetRelease(
+    releaseOption: String,
+    vulnlogFile: VulnlogFile,
+): ReleaseEntry {
+    val knownReleases = "Known releases: ${vulnlogFile.releases.joinToString(", ") { it.id.value }}"
+    val release =
+        try {
+            Release(releaseOption)
+        } catch (e: IllegalArgumentException) {
+            throw FilterValidationException("Invalid release: ${e.message}", knownReleases)
+        }
+    return vulnlogFile.releases.firstOrNull { it.id == release }
+        ?: throw FilterValidationException("Release not found: $releaseOption", knownReleases)
+}
 
 /**
  * Resolves and validates the tag filters provided as options against the tags defined in a given Vulnlog file.
