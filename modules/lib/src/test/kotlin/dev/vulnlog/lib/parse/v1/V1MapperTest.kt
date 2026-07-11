@@ -5,6 +5,8 @@ package dev.vulnlog.lib.parse.v1
 
 import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Project
+import dev.vulnlog.lib.model.Purl
+import dev.vulnlog.lib.model.PurlEntry
 import dev.vulnlog.lib.model.Release
 import dev.vulnlog.lib.model.ReleaseEntry
 import dev.vulnlog.lib.model.ReportEntry
@@ -21,6 +23,7 @@ import dev.vulnlog.lib.model.VulnerabilityEntry
 import dev.vulnlog.lib.model.VulnlogFile
 import dev.vulnlog.lib.parse.v1.dto.ProjectDto
 import dev.vulnlog.lib.parse.v1.dto.ReleaseEntryDto
+import dev.vulnlog.lib.parse.v1.dto.ReleasePurlEntryDto
 import dev.vulnlog.lib.parse.v1.dto.ReportEntryDto
 import dev.vulnlog.lib.parse.v1.dto.ResolutionDto
 import dev.vulnlog.lib.parse.v1.dto.SuppressionDto
@@ -97,6 +100,32 @@ class V1MapperTest :
                 )
 
             dto.releases shouldBe listOf(ReleaseEntryDto("v1.0"), ReleaseEntryDto("v2.0"))
+        }
+
+        test("release purls are kept in the dto with tags omitted when empty") {
+            val release =
+                ReleaseEntry(
+                    id = Release("v1.0"),
+                    purls =
+                        listOf(
+                            PurlEntry(Purl.Generic("pkg:generic/widget@1.0"), tags = listOf(Tag("cli"))),
+                            PurlEntry(Purl.Docker("pkg:docker/widget@1.0")),
+                        ),
+                )
+
+            val dto = V1Mapper.toDto(vulnlogFile(releases = listOf(release)))
+
+            dto.releases shouldBe
+                listOf(
+                    ReleaseEntryDto(
+                        id = "v1.0",
+                        purls =
+                            listOf(
+                                ReleasePurlEntryDto("pkg:generic/widget@1.0", tags = listOf("cli")),
+                                ReleasePurlEntryDto("pkg:docker/widget@1.0"),
+                            ),
+                    ),
+                )
         }
 
         test("vulnerabilities are mapped to dto") {
@@ -269,6 +298,41 @@ class V1MapperTest :
                 releases shouldHaveSize 2
                 releases[0].id shouldBe Release("v1.0")
                 releases[1].id shouldBe Release("v2.0")
+            }
+
+            test("a purl entry without tags maps to an empty tag list") {
+                val dto =
+                    minimalDto(
+                        releases =
+                            listOf(
+                                ReleaseEntryDto(
+                                    id = "v1.0",
+                                    purls = listOf(ReleasePurlEntryDto("pkg:generic/widget@1.0")),
+                                ),
+                            ),
+                    )
+
+                val purls = toDomain(dto).releases.first().purls
+                purls shouldBe listOf(PurlEntry(Purl.Generic("pkg:generic/widget@1.0")))
+            }
+
+            test("purl entry tags are mapped to domain tags") {
+                val dto =
+                    minimalDto(
+                        releases =
+                            listOf(
+                                ReleaseEntryDto(
+                                    id = "v1.0",
+                                    purls =
+                                        listOf(
+                                            ReleasePurlEntryDto("pkg:generic/widget@1.0", tags = listOf("cli")),
+                                        ),
+                                ),
+                            ),
+                    )
+
+                val purls = toDomain(dto).releases.first().purls
+                purls shouldBe listOf(PurlEntry(Purl.Generic("pkg:generic/widget@1.0"), tags = listOf(Tag("cli"))))
             }
         }
 
