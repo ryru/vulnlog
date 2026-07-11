@@ -58,6 +58,10 @@ data class VexStatement(
      */
     val fixIn: Release? = null,
     /**
+     * Note describing how the vulnerability was resolved, when the resolution carries one.
+     */
+    val fixNote: String? = null,
+    /**
      * Product identifiers of the target release this statement applies to.
      */
     val products: List<Purl>,

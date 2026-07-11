@@ -105,6 +105,7 @@ private fun toStatement(
         published = entry.reports.mapNotNull { report -> report.at }.minOrNull(),
         updated = entry.analyzedAt,
         fixIn = entry.resolution?.release,
+        fixNote = entry.resolution?.note,
         products = products.sortedBy { it.value },
         packages = entry.packages.sortedBy { it.value },
     )
