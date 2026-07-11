@@ -1,0 +1,105 @@
+// Copyright the Vulnlog contributors
+// SPDX-License-Identifier: Apache-2.0
+
+package dev.vulnlog.lib.parse.vex.openvex
+
+import dev.vulnlog.lib.model.Project
+import dev.vulnlog.lib.model.vex.VexStatement
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+
+private const val CONTEXT_PREFIX = "https://openvex.dev/ns"
+
+sealed interface OpenVexDocumentResult {
+    /**
+     * The existing output already carries the same statements; nothing to write.
+     */
+    data object Unchanged : OpenVexDocumentResult
+
+    /**
+     * A document to write to the output path.
+     */
+    data class Document(
+        val content: String,
+    ) : OpenVexDocumentResult
+}
+
+private data class DocumentIdentity(
+    val id: String,
+    val version: Int,
+    val timestamp: Instant,
+    val lastUpdated: Instant?,
+)
+
+private val mapper = JsonMapper.builder().build()
+
+/**
+ * Generates the OpenVEX document with identity continuity. A valid existing output keeps its `@id`
+ * and original `timestamp`, bumps the version, and records [now] as `last_updated`; an absent or
+ * invalid one starts a new identity from [newDocumentId] issued at [now]. When the document equals
+ * the existing output apart from `version`, `timestamp`, and `last_updated`, nothing is written and
+ * the existing file stays untouched.
+ */
+fun generateOpenVexDocument(
+    project: Project,
+    statements: List<VexStatement>,
+    existingOutput: String?,
+    newDocumentId: () -> String,
+    now: Instant,
+    toolVersion: String,
+): OpenVexDocumentResult {
+    val existing = existingOutput?.let(::parseDocument)
+    val identity =
+        existing?.let(::priorIdentity)?.let { prior -> prior.copy(version = prior.version + 1, lastUpdated = now) }
+            ?: DocumentIdentity(newDocumentId(), 1, now, null)
+    val document =
+        OpenVexMapper.toDto(
+            project = project,
+            statements = statements,
+            documentId = identity.id,
+            version = identity.version,
+            timestamp = identity.timestamp,
+            lastUpdated = identity.lastUpdated,
+            toolVersion = toolVersion,
+        )
+    val content = OpenVexWriter.write(document)
+    if (existing != null && comparableTree(parseDocument(content)!!) == comparableTree(existing)) {
+        return OpenVexDocumentResult.Unchanged
+    }
+    return OpenVexDocumentResult.Document(content)
+}
+
+private fun parseDocument(content: String): ObjectNode? =
+    try {
+        mapper.readTree(content) as? ObjectNode
+    } catch (_: JacksonException) {
+        null
+    }
+
+private fun priorIdentity(document: ObjectNode): DocumentIdentity? {
+    val context = document.path("@context").asString(null) ?: return null
+    if (!context.startsWith(CONTEXT_PREFIX)) return null
+    val id = document.path("@id").asString(null) ?: return null
+    val timestamp = document.path("timestamp").asString(null)?.let(::parseTimestamp) ?: return null
+    return DocumentIdentity(id, document.path("version").asInt(1), timestamp, null)
+}
+
+private fun parseTimestamp(value: String): Instant? =
+    try {
+        OffsetDateTime.parse(value).toInstant()
+    } catch (_: DateTimeParseException) {
+        null
+    }
+
+private fun comparableTree(document: ObjectNode): JsonNode {
+    val copy = document.deepCopy()
+    copy.remove("version")
+    copy.remove("timestamp")
+    copy.remove("last_updated")
+    return copy
+}
