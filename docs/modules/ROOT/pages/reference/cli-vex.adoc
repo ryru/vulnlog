@@ -1,0 +1,184 @@
+= vulnlog vex
+
+Generates a VEX (Vulnerability Exploitability eXchange) document for one release.
+
+[source]
+----
+vulnlog vex <file> --release <id> [--tag <id>] [-o <path>]
+----
+
+A VEX document states, for every vulnerability recorded in the Vulnlog file, whether the chosen release is actually affected.
+Scanners such as Trivy and Grype consume it to filter findings the project has already triaged, and compliance consumers import it as the project's verdict record.
+The output format is OpenVEX 0.2.
+
+[cols="2,3"]
+|===
+| Flag | Description
+
+| `--release <id>`
+| Release to generate the VEX document for. Must be defined in the `releases` section. Required.
+
+| `--format <value>`
+| Output format of the VEX document. `openvex` (OpenVEX 0.2) is the default and only format.
+
+| `--tag <id>`
+| Scope the document to the release purls carrying this tag. Repeatable; multiple tags widen the scope. See Scoping to an artifact.
+
+| `-o, --output <path>`
+| Output file path, or `-` to write to stdout. Defaults to `vex.json` in the current directory.
+
+| `-`
+| Use as the file argument to read from stdin.
+|===
+
+== Product identity
+
+The target release must declare at least one purl; the purls identify the products the statements apply to.
+When the release declares none, the command fails with an error, because the resulting document could not name its product.
+See xref:reference/project-and-releases.adoc[Project and releases] for declaring release purls.
+
+Each product carries the vulnerability's package purls as subcomponents, so a statement never silently covers a second, unrelated introduction path of the same vulnerability.
+
+When a vulnerability carries tags, its statement applies only to the release purls that share a tag; purls without tags always apply.
+Vulnerabilities without tags apply to every purl of the release.
+This scopes a statement to the affected artifact when a release ships several.
+See xref:reference/tags.adoc[Tags].
+
+== Scoping to an artifact
+
+When a release ships several artifacts, `--tag` produces a document for one of them, for example a VEX file accompanying the SBOM of the CLI or of the Gradle plugin.
+The document then anchors on exactly the release purls carrying the requested tag; purls without tags stay out of a tag-scoped document.
+A tag no purl carries fails like a release without purls.
+
+Statements are never dropped by scoping: a vulnerability whose products all fall outside the scope stays in the document with an empty `products` list, so consumers still see its verdict.
+
+Write each scope to its own output path.
+The document identity lives in the output file, so reusing one file for different scopes chains unrelated `@id` lineages.
+
+[source]
+----
+vulnlog vex vulnlog.yaml --release 1.2.0 --tag cli -o vex-cli.json
+vulnlog vex vulnlog.yaml --release 1.2.0 --tag "gradle plugin" -o vex-plugin.json
+----
+
+== Statement selection
+
+A vulnerability produces a statement when its earliest affected release is not newer than the target release.
+The order of the `releases` list is the timeline: earlier position means older release.
+Entries recorded only against later releases are left out; everything else stays in, so consumers keep receiving positive `not_affected` and `fixed` assurance.
+
+The status derives from the verdict and the resolution:
+
+[cols="2,2,2"]
+|===
+| Verdict | Resolution | `status`
+
+| `not affected`
+| any
+| `not_affected`
+
+| `affected`
+| contained in the target release
+| `fixed`
+
+| `affected`
+| absent or in a later release
+| `affected`
+
+| none (under investigation)
+| any
+| `under_investigation`
+|===
+
+The Vulnlog justifications translate one to one to the OpenVEX justification labels.
+OpenVEX requires a document to carry at least one statement; a release no recorded vulnerability concerns fails with an error.
+
+== Action statement
+
+OpenVEX requires every `affected` statement to state what the consumer should do.
+The action derives from the disposition and the resolution; the resolution note is appended to an update action:
+
+[cols="2,2,3"]
+|===
+| Disposition | Resolution | `action_statement`
+
+| not stated
+| fix in a later release
+| `Update to release <id>.`
+
+| not stated
+| none
+| `No remediation is available yet.`
+
+| `will-fix`
+| fix in a later release
+| `Update to release <id>.`
+
+| `will-fix`
+| none
+| `A fix is planned but not yet available.`
+
+| `wont-fix`
+| fix in a later release
+| `The risk is accepted for this release. A fix ships with release <id>.`
+
+| `wont-fix`
+| none
+| `The risk is accepted. No fix is planned.`
+|===
+
+== Emitted fields
+
+Beyond status and action, every statement carries what the Vulnlog file knows about the vulnerability:
+
+* The publishing authority's documentation URL as the vulnerability `@id` and the aliases as plain identifiers, derived from the id type (CVE, GHSA, SNYK, RUSTSEC).
+* The `description` of the vulnerability.
+* The statement `timestamp`: the analysis date, or the earliest report date, or the document timestamp; dates are widened to UTC midnight.
+* The `analysis` text as `impact_statement` on `not_affected` statements and as `status_notes` on every other status.
+* The organization as statement `supplier`.
+
+The document names the project author (with contact when present) as `author` and the generating CLI as `tooling`.
+Fields without a value in the Vulnlog file are omitted.
+
+== Document identity
+
+The command is stateless; identity lives in the output file.
+When the output file already exists and is an OpenVEX document, its `@id` and original `timestamp` are kept, its `version` is incremented, and `last_updated` records the regeneration time.
+When the regenerated document differs only in `version`, `timestamp`, and `last_updated`, the file is left untouched and the command reports `Unchanged`.
+A rerun in CI without YAML changes therefore never dirties the working tree.
+
+== Suppressing scanner findings
+
+Trivy and Grype accept OpenVEX documents as scan input and filter triaged findings out of their results.
+A `not_affected` or `fixed` statement removes the finding; `affected` and `under_investigation` leave it in place.
+
+[source]
+----
+trivy image --vex vex.json acme/acme-web-app:1.2.0
+grype acme/acme-web-app:1.2.0 --vex vex.json
+----
+
+Scanners match statements by purl, so the release purls must name the artifacts the way the scanner sees them: `pkg:oci` purls for container images (digest-pinned where possible) and ecosystem purls such as `pkg:maven` for libraries.
+A `pkg:generic` purl never matches a scan target; its statements are valid but have no effect on scan results.
+
+== Examples
+
+.Generate an OpenVEX document for release 1.2.0
+[source]
+----
+vulnlog vex vulnlog.yaml --release 1.2.0
+Wrote: vex.json
+----
+
+.Rerun without changes
+[source]
+----
+vulnlog vex vulnlog.yaml --release 1.2.0
+Unchanged: vex.json
+----
+
+== See also
+
+- xref:reference/project-and-releases.adoc[Project and releases]
+- xref:reference/verdicts-and-justifications.adoc[Verdicts and justifications]
+- xref:reference/tags.adoc[Tags]

@@ -39,6 +39,7 @@
 *** xref:reference/cli-report.adoc[report]
 *** xref:reference/cli-add.adoc[modify add]
 *** xref:reference/cli-copy.adoc[modify copy]
+*** xref:reference/cli-vex.adoc[vex]
 ** xref:reference/gradle-plugin.adoc[Gradle plugin]
 ** xref:reference/exit-codes-and-messages.adoc[Exit codes and messages]
 * Troubleshooting
