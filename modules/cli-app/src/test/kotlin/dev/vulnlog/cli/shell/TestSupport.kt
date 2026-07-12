@@ -86,6 +86,46 @@ internal fun vulnlogYamlWithPurls(
     """.trimIndent()
 
 /**
+ * Builds a Vulnlog YAML spanning three releases: two with their own purl, one without. The
+ * vulnerability affects the first release and is resolved in the second, so an aggregate vex
+ * document carries one statement per release with differing statuses.
+ */
+internal fun vulnlogYamlAcrossReleases(): String =
+    """
+    ---
+    schemaVersion: "1"
+
+    project:
+      organization: Acme Corp
+      name: Acme Web App
+      author: Acme Corp Security Team
+
+    releases:
+      - id: 1.0.0
+        published_at: 2026-01-15
+        purls:
+          - purl: "pkg:generic/acme-web-app@1.0.0"
+      - id: 2.0.0
+        published_at: 2026-02-15
+        purls:
+          - purl: "pkg:generic/acme-web-app@2.0.0"
+      - id: 3.0.0
+
+    vulnerabilities:
+
+      - id: CVE-2026-1234
+        releases: [ 1.0.0 ]
+        description: Remote code execution in example-lib
+        packages: [ "pkg:npm/example-lib@2.3.0" ]
+        reports:
+          - reporter: trivy
+        verdict: affected
+        severity: high
+        resolution:
+          in: 2.0.0
+    """.trimIndent()
+
+/**
  * Builds a Vulnlog YAML whose release ships two tagged artifacts, so that vex can be scoped to
  * one of them. The vulnerability carries the 'gradle plugin' tag.
  */

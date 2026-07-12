@@ -182,6 +182,41 @@ class VexCommandTest :
             }
         }
 
+        context("all releases") {
+
+            test("without --release the document covers every release that declares purls") {
+                withTempFile(content = vulnlogYamlAcrossReleases()) { input ->
+                    val result = VexCommand().test("${input.absolutePath} -o -")
+
+                    result.statusCode shouldBe 0
+                    result.stdout shouldContain "\"@id\": \"pkg:generic/acme-web-app@1.0.0\""
+                    result.stdout shouldContain "\"@id\": \"pkg:generic/acme-web-app@2.0.0\""
+                    result.stdout shouldContain "\"status\": \"affected\""
+                    result.stdout shouldContain "\"status\": \"fixed\""
+                }
+            }
+
+            test("releases without purls are named in a warning and left out") {
+                withTempFile(content = vulnlogYamlAcrossReleases()) { input ->
+                    val result = VexCommand().test("${input.absolutePath} -o -")
+
+                    result.statusCode shouldBe 0
+                    result.stderr shouldContain
+                        "warning: releases without purls are not part of the document: '3.0.0'"
+                }
+            }
+
+            test("fails when no release declares purls") {
+                withTempFile(content = vulnlogYaml()) { input ->
+                    val result = VexCommand().test("${input.absolutePath} -o -")
+
+                    result.statusCode shouldBe ExitCode.VALIDATION_ERROR.code
+                    result.stderr shouldContain "error: no release declares purls"
+                    result.stderr shouldContain "hint: add at least one purl to a release"
+                }
+            }
+        }
+
         context("tag scoping") {
 
             test("--tag narrows the products to the tagged purls") {
@@ -279,15 +314,6 @@ class VexCommandTest :
                     result.statusCode shouldNotBe 0
                     result.stderr shouldContain "--format"
                     result.stderr shouldContain "openvex"
-                }
-            }
-
-            test("requires the release flag") {
-                withTempFile(content = vulnlogYamlWithPurls()) { input ->
-                    val result = VexCommand().test("${input.absolutePath} -o -")
-
-                    result.statusCode shouldNotBe 0
-                    result.stderr shouldContain "--release"
                 }
             }
         }

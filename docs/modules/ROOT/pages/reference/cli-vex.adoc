@@ -1,13 +1,13 @@
 = vulnlog vex
 
-Generates a VEX (Vulnerability Exploitability eXchange) document for one release.
+Generates a VEX (Vulnerability Exploitability eXchange) document for one release or for all releases.
 
 [source]
 ----
-vulnlog vex <file> --release <id> [--tag <id>] [--baseline <path>] [-o <path>]
+vulnlog vex <file> [--release <id>] [--tag <id>] [--baseline <path>] [-o <path>]
 ----
 
-A VEX document states, for every vulnerability recorded in the Vulnlog file, whether the chosen release is actually affected.
+A VEX document states, for every entry recorded in the Vulnlog file, whether a release is actually affected.
 Scanners such as Trivy and Grype consume it to filter findings the project has already triaged, and compliance consumers import it as the project's verdict record.
 The output format is OpenVEX 0.2.
 
@@ -16,7 +16,7 @@ The output format is OpenVEX 0.2.
 | Flag | Description
 
 | `--release <id>`
-| Release to generate the VEX document for. Must be defined in the `releases` section. Required.
+| Release to generate the VEX document for. Must be defined in the `releases` section. When omitted, the document covers every release that declares purls in scope. See Covering all releases.
 
 | `--format <value>`
 | Output format of the VEX document. `openvex` (OpenVEX 0.2) is the default and only format.
@@ -66,7 +66,7 @@ vulnlog vex vulnlog.yaml --release 1.2.0 --tag "gradle plugin" -o vex-plugin.jso
 
 == Statement selection
 
-A vulnerability produces a statement when its earliest affected release is not newer than the target release.
+An entry produces a statement when its earliest affected release is not newer than the target release.
 The order of the `releases` list is the timeline: earlier position means older release.
 Entries recorded only against later releases are left out; everything else stays in, so consumers keep receiving positive `not_affected` and `fixed` assurance.
 
@@ -94,7 +94,18 @@ The status derives from the verdict and the resolution:
 |===
 
 The Vulnlog justifications translate one to one to the OpenVEX justification labels.
-OpenVEX requires a document to carry at least one statement; a release no recorded vulnerability concerns fails with an error.
+OpenVEX requires a document to carry at least one statement; a run whose selection yields none fails with an error.
+
+== Covering all releases
+
+Without `--release` the document covers every release that declares purls in scope, with one statement per entry and release, each anchored to that release's purls.
+The same entry then appears several times with the status each release deserves, for example `affected` for the release that ships the vulnerable dependency and `fixed` for the release that resolved it.
+Consumers evaluate statement by statement and match products against their scan target, so a scan of one release picks up exactly that release's statements.
+
+Releases without purls in scope cannot anchor a statement; the command names them in a warning and leaves them out.
+When no release declares purls, the command fails with an error.
+
+One aggregate document at a stable location serves scans of any release, which pairs well with publishing a single `vex.json` next to your releases.
 
 == Action statement
 
@@ -174,6 +185,13 @@ A `pkg:generic` purl never matches a scan target; its statements are valid but h
 [source]
 ----
 vulnlog vex vulnlog.yaml --release 1.2.0
+Wrote: vex.json
+----
+
+.Generate one document covering all releases
+[source]
+----
+vulnlog vex vulnlog.yaml
 Wrote: vex.json
 ----
 

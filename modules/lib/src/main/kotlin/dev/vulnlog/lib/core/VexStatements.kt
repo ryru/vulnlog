@@ -42,6 +42,28 @@ fun buildVexStatements(
 }
 
 /**
+ * Builds the VEX statements for every release in [aggregateReleases], one statement per
+ * vulnerability and release, each anchored to that release's purls. Statements identical across
+ * releases collapse into one, so a vulnerability whose products fall outside the scope in every
+ * release (see the empty-product rule) appears exactly once. Statements are sorted by
+ * vulnerability id first and release timeline second.
+ *
+ * @param vulnlogFile The Vulnlog file containing release and vulnerability records.
+ * @param aggregateReleases The releases the document covers. Every release must be defined in the
+ * releases section; the caller decides the set, typically the releases that carry purls in scope.
+ * @param documentTags Narrows the document to the release purls carrying one of these tags.
+ */
+fun buildAggregateVexStatements(
+    vulnlogFile: VulnlogFile,
+    aggregateReleases: List<Release>,
+    documentTags: Set<Tag> = emptySet(),
+): List<VexStatement> =
+    aggregateReleases
+        .flatMap { release -> buildVexStatements(vulnlogFile, release, documentTags) }
+        .distinct()
+        .sortedBy { statement -> statement.id.id }
+
+/**
  * Narrows a release to the purls carrying one of the [documentTags]. Strict selection: purls
  * without tags are excluded from a tag-scoped document. Empty [documentTags] means no narrowing.
  */

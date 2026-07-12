@@ -331,4 +331,83 @@ class VexStatementsTest :
                 buildVexStatements(file, Release("9.9.9"))
             }
         }
+
+        context("aggregate statements") {
+            val purl1 = Purl.Generic("pkg:generic/product@1.0.0")
+            val purl2 = Purl.Generic("pkg:generic/product@2.0.0")
+            val purl3 = Purl.Generic("pkg:generic/product@3.0.0")
+            val perReleasePurls =
+                listOf(
+                    releaseEntry(release1, purls = listOf(purl1)),
+                    releaseEntry(release2, purls = listOf(purl2)),
+                    releaseEntry(release3, purls = listOf(purl3)),
+                )
+            val allReleases = listOf(release1, release2, release3)
+
+            test("one statement per vulnerability and release, anchored to that release's purls") {
+                val entry = vulnerability(resolution = Resolution(release = release2))
+                val file = vulnlogFile(perReleasePurls, listOf(entry))
+
+                val statements = buildAggregateVexStatements(file, allReleases)
+
+                statements shouldHaveSize 3
+                statements.map { it.status } shouldBe listOf(VexStatus.Affected, VexStatus.Fixed, VexStatus.Fixed)
+                statements.map { it.products } shouldBe listOf(listOf(purl1), listOf(purl2), listOf(purl3))
+            }
+
+            test("a vulnerability concerns only the releases from its earliest affected release onward") {
+                val entry = vulnerability(releases = listOf(release2))
+                val file = vulnlogFile(perReleasePurls, listOf(entry))
+
+                val statements = buildAggregateVexStatements(file, allReleases)
+
+                statements.map { it.products } shouldBe listOf(listOf(purl2), listOf(purl3))
+            }
+
+            test("statements are sorted by vulnerability id first and release timeline second") {
+                val file =
+                    vulnlogFile(
+                        perReleasePurls,
+                        listOf(
+                            vulnerability(id = VulnId.Snyk("SNYK-JAVA-B-2"), releases = listOf(release2)),
+                            vulnerability(id = VulnId.Cve("CVE-2026-0002")),
+                        ),
+                    )
+
+                val statements = buildAggregateVexStatements(file, allReleases)
+
+                statements.map { it.id.id to it.products } shouldBe
+                    listOf(
+                        "CVE-2026-0002" to listOf(purl1),
+                        "CVE-2026-0002" to listOf(purl2),
+                        "CVE-2026-0002" to listOf(purl3),
+                        "SNYK-JAVA-B-2" to listOf(purl2),
+                        "SNYK-JAVA-B-2" to listOf(purl3),
+                    )
+            }
+
+            test("identical statements across releases collapse into one") {
+                val release =
+                    listOf(
+                        ReleaseEntry(id = release1, purls = listOf(PurlEntry(purl1, tags = listOf(Tag("cli"))))),
+                        ReleaseEntry(id = release2, purls = listOf(PurlEntry(purl2, tags = listOf(Tag("cli"))))),
+                    )
+                val outOfScope = vulnerability(tags = listOf(Tag("gradle plugin")))
+                val file = vulnlogFile(release, listOf(outOfScope))
+
+                val statements = buildAggregateVexStatements(file, listOf(release1, release2))
+
+                statements shouldHaveSize 1
+                statements.first().products shouldBe emptyList()
+            }
+
+            test("releases outside the aggregate set produce no statements") {
+                val entry = vulnerability()
+                val file = vulnlogFile(perReleasePurls, listOf(entry))
+
+                val statements = buildAggregateVexStatements(file, listOf(release1, release3))
+
+                statements.map { it.products } shouldBe listOf(listOf(purl1), listOf(purl3))
+            }
+        }
     })

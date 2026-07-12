@@ -14,11 +14,11 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import dev.vulnlog.cli.BuildInfo
 import dev.vulnlog.lib.core.StatusVerb
+import dev.vulnlog.lib.core.buildAggregateVexStatements
 import dev.vulnlog.lib.core.buildVexStatements
 import dev.vulnlog.lib.core.formatHint
 import dev.vulnlog.lib.core.formatMessage
@@ -27,6 +27,7 @@ import dev.vulnlog.lib.core.scopeReleaseToTags
 import dev.vulnlog.lib.model.ReleaseEntry
 import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.VulnlogFile
+import dev.vulnlog.lib.model.vex.VexStatement
 import dev.vulnlog.lib.parse.vex.openvex.OpenVexDocumentResult
 import dev.vulnlog.lib.parse.vex.openvex.generateOpenVexDocument
 import dev.vulnlog.lib.result.Severity
@@ -42,16 +43,18 @@ import kotlin.io.path.exists
 import kotlin.io.path.readText
 
 class VexCommand : CliktCommand(name = "vex") {
-    override fun help(context: Context): String = "Generate a VEX document for one release."
+    override fun help(context: Context): String = "Generate a VEX document for one release or all releases."
 
     val input: FileInputOption by argument(
         help = "Vulnlog file, or '-' to read from stdin, to generate the VEX document from.",
     ).convert(conversion = ArgumentTransformContext::toInputFileOption)
 
-    val release: String by option(
+    val release: String? by option(
         "--release",
-        help = "Release to generate the VEX document for.",
-    ).required()
+        help =
+            "Release to generate the VEX document for. When omitted, the document covers every " +
+                "release that declares purls in scope.",
+    )
 
     val format: String by option(
         "--format",
@@ -88,21 +91,12 @@ class VexCommand : CliktCommand(name = "vex") {
         validateParsedInputOrFailWithFailureOutput(parsedSuccessfully)
 
         val vulnlogFile = parsedSuccessfully.values.first().content
-        val targetRelease = resolveTargetReleaseOrFail(vulnlogFile)
         val documentTags = resolveDocumentTagsOrFail(vulnlogFile)
-        val scopedRelease = scopeReleaseToTags(targetRelease, documentTags)
-
-        if (scopedRelease.purls.isEmpty()) {
-            failOnMissingPurls(scopedRelease, documentTags)
-        }
-
-        val statements = buildVexStatements(vulnlogFile, targetRelease.id, documentTags)
-        if (statements.isEmpty()) {
-            failOnEmptyStatements(targetRelease)
-        }
-        diagnosticSink().verbose(
-            "generated ${statements.size} VEX statements for release '${targetRelease.id.value}'",
-        )
+        val statements =
+            when (val targetRelease = release) {
+                null -> collectAggregateStatements(vulnlogFile, documentTags)
+                else -> collectReleaseStatements(vulnlogFile, targetRelease, documentTags)
+            }
 
         val baselineContent = baseline?.let(::readBaselineOrFail)
         val result =
@@ -159,9 +153,68 @@ class VexCommand : CliktCommand(name = "vex") {
         return path.readText()
     }
 
-    private fun resolveTargetReleaseOrFail(vulnlogFile: VulnlogFile): ReleaseEntry =
+    /**
+     * The statements for one target release. The release must exist and declare purls in scope;
+     * a release no recorded entry concerns fails, because OpenVEX forbids an empty document.
+     */
+    private fun collectReleaseStatements(
+        vulnlogFile: VulnlogFile,
+        releaseOption: String,
+        documentTags: Set<Tag>,
+    ): List<VexStatement> {
+        val targetRelease = resolveTargetReleaseOrFail(vulnlogFile, releaseOption)
+        val scopedRelease = scopeReleaseToTags(targetRelease, documentTags)
+        if (scopedRelease.purls.isEmpty()) {
+            failOnMissingPurls(scopedRelease, documentTags)
+        }
+
+        val statements = buildVexStatements(vulnlogFile, targetRelease.id, documentTags)
+        if (statements.isEmpty()) {
+            failOnEmptyStatements("release '${targetRelease.id.value}' has no vulnerabilities to state")
+        }
+        diagnosticSink().verbose(
+            "generated ${statements.size} VEX statements for release '${targetRelease.id.value}'",
+        )
+        return statements
+    }
+
+    /**
+     * The statements for every release that declares purls in scope, one statement per entry and
+     * release. Releases without purls in scope are named in a warning and left out; when no
+     * release qualifies, the document could not identify any product and the command fails.
+     */
+    private fun collectAggregateStatements(
+        vulnlogFile: VulnlogFile,
+        documentTags: Set<Tag>,
+    ): List<VexStatement> {
+        val (withPurls, withoutPurls) =
+            vulnlogFile.releases.partition { release -> scopeReleaseToTags(release, documentTags).purls.isNotEmpty() }
+        if (withoutPurls.isNotEmpty()) {
+            val skipped = withoutPurls.joinToString(", ") { release -> "'${release.id.value}'" }
+            echoMessage(
+                formatMessage(Severity.WARNING, "releases without purls are not part of the document: $skipped"),
+            )
+        }
+        if (withPurls.isEmpty()) {
+            failOnMissingPurlsInEveryRelease(documentTags)
+        }
+
+        val statements = buildAggregateVexStatements(vulnlogFile, withPurls.map { it.id }, documentTags)
+        if (statements.isEmpty()) {
+            failOnEmptyStatements("the releases have no vulnerabilities to state")
+        }
+        diagnosticSink().verbose(
+            "generated ${statements.size} VEX statements across ${withPurls.size} releases",
+        )
+        return statements
+    }
+
+    private fun resolveTargetReleaseOrFail(
+        vulnlogFile: VulnlogFile,
+        releaseOption: String,
+    ): ReleaseEntry =
         try {
-            resolveTargetRelease(release, vulnlogFile)
+            resolveTargetRelease(releaseOption, vulnlogFile)
         } catch (e: FilterValidationException) {
             echoMessage(formatMessage(Severity.ERROR, e.message.orEmpty()))
             echoMessage(formatHint(e.detail))
@@ -197,10 +250,25 @@ class VexCommand : CliktCommand(name = "vex") {
         throw ProgramResult(ExitCode.VALIDATION_ERROR.code)
     }
 
-    private fun failOnEmptyStatements(release: ReleaseEntry): Nothing {
-        echoMessage(
-            formatMessage(Severity.ERROR, "release '${release.id.value}' has no vulnerabilities to state"),
-        )
+    private fun failOnMissingPurlsInEveryRelease(documentTags: Set<Tag>): Nothing {
+        val scope =
+            documentTags
+                .takeIf { it.isNotEmpty() }
+                ?.let { " tagged ${it.joinToString(", ") { tag -> "'${tag.value}'" }}" }
+                .orEmpty()
+        val nextStep =
+            if (documentTags.isEmpty()) {
+                "add at least one purl to a release so the VEX document can identify the products"
+            } else {
+                "tag a purl with one of the requested tags, or drop --tag"
+            }
+        echoMessage(formatMessage(Severity.ERROR, "no release declares purls$scope"))
+        echoMessage(formatHint(nextStep))
+        throw ProgramResult(ExitCode.VALIDATION_ERROR.code)
+    }
+
+    private fun failOnEmptyStatements(reason: String): Nothing {
+        echoMessage(formatMessage(Severity.ERROR, reason))
         echoMessage(formatHint("an OpenVEX document needs at least one statement; record a vulnerability first"))
         throw ProgramResult(ExitCode.VALIDATION_ERROR.code)
     }
