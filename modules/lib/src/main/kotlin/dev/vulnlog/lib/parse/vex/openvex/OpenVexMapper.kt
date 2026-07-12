@@ -4,8 +4,12 @@
 package dev.vulnlog.lib.parse.vex.openvex
 
 import dev.vulnlog.lib.core.toOpenVexActionStatement
+import dev.vulnlog.lib.core.toOpenVexAuthor
+import dev.vulnlog.lib.core.toOpenVexImpactStatement
 import dev.vulnlog.lib.core.toOpenVexJustification
+import dev.vulnlog.lib.core.toOpenVexStatementTimestamp
 import dev.vulnlog.lib.core.toOpenVexStatus
+import dev.vulnlog.lib.core.toOpenVexStatusNotes
 import dev.vulnlog.lib.core.vulnIdSourceUrl
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Purl
@@ -43,7 +47,7 @@ object OpenVexMapper {
         return DocumentDto(
             context = CONTEXT,
             id = documentId,
-            author = toAuthor(project),
+            author = toOpenVexAuthor(project),
             role = ROLE,
             timestamp = documentTimestamp,
             lastUpdated = lastUpdated?.let(Rfc3339Timestamp::of),
@@ -53,16 +57,12 @@ object OpenVexMapper {
         )
     }
 
-    private fun toAuthor(project: Project): String =
-        project.contact?.let { contact -> "${project.author} ($contact)" } ?: project.author
-
     private fun toStatement(
         statement: VexStatement,
         project: Project,
         documentTimestamp: Rfc3339Timestamp,
     ): StatementDto {
-        val timestamp = toStatementTimestamp(statement, documentTimestamp)
-        val notAffected = statement.status is VexStatus.NotAffected
+        val timestamp = toOpenVexStatementTimestamp(statement, documentTimestamp)
         val actionStatement = toOpenVexActionStatement(statement)
         return StatementDto(
             vulnerability = toVulnerability(statement),
@@ -72,25 +72,13 @@ object OpenVexMapper {
             justification =
                 (statement.status as? VexStatus.NotAffected)
                     ?.let { status -> toOpenVexJustification(status.justification).token },
-            impactStatement = statement.detail.takeIf { notAffected },
+            impactStatement = toOpenVexImpactStatement(statement),
             actionStatement = actionStatement,
             actionStatementTimestamp = timestamp.takeIf { actionStatement != null },
-            statusNotes = statement.detail.takeIf { !notAffected },
+            statusNotes = toOpenVexStatusNotes(statement),
             supplier = project.organization,
         )
     }
-
-    /**
-     * The time the statement was known to be true: the analysis date, the earliest report date, or
-     * the document timestamp as the last resort.
-     */
-    private fun toStatementTimestamp(
-        statement: VexStatement,
-        documentTimestamp: Rfc3339Timestamp,
-    ): Rfc3339Timestamp =
-        statement.updated?.let(Rfc3339Timestamp::of)
-            ?: statement.published?.let(Rfc3339Timestamp::of)
-            ?: documentTimestamp
 
     private fun toVulnerability(statement: VexStatement): VulnerabilityDto =
         VulnerabilityDto(

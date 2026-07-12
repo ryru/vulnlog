@@ -4,7 +4,9 @@
 package dev.vulnlog.lib.core
 
 import dev.vulnlog.lib.model.Disposition
+import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.VexJustification
+import dev.vulnlog.lib.model.vex.Rfc3339Timestamp
 import dev.vulnlog.lib.model.vex.VexStatement
 import dev.vulnlog.lib.model.vex.VexStatus
 
@@ -82,3 +84,36 @@ private fun updateAction(statement: VexStatement): String {
     val note = statement.fixNote
     return if (note != null) "$action $note" else action
 }
+
+/**
+ * The document author: the project author, with the contact in parentheses when one is recorded.
+ */
+fun toOpenVexAuthor(project: Project): String =
+    project.contact?.let { contact -> "${project.author} ($contact)" } ?: project.author
+
+/**
+ * The analysis text is routed to exactly one field per statement. For `not_affected` it becomes
+ * the `impact_statement`, the spec field for why the product is not affected.
+ */
+fun toOpenVexImpactStatement(statement: VexStatement): String? =
+    statement.detail.takeIf { statement.status is VexStatus.NotAffected }
+
+/**
+ * The analysis text is routed to exactly one field per statement. For every status except
+ * `not_affected` it becomes the `status_notes`, the spec field for how the status was determined.
+ */
+fun toOpenVexStatusNotes(statement: VexStatement): String? =
+    statement.detail.takeIf { statement.status !is VexStatus.NotAffected }
+
+/**
+ * The time the statement was known to be true: the analysis date, the earliest report date, or
+ * the document timestamp as the last resort. The document timestamp is preserved across
+ * regenerations, so the fallback never reintroduces the clock.
+ */
+fun toOpenVexStatementTimestamp(
+    statement: VexStatement,
+    documentTimestamp: Rfc3339Timestamp,
+): Rfc3339Timestamp =
+    statement.updated?.let(Rfc3339Timestamp::of)
+        ?: statement.published?.let(Rfc3339Timestamp::of)
+        ?: documentTimestamp
