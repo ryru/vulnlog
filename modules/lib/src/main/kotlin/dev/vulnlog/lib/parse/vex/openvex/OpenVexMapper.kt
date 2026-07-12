@@ -9,6 +9,7 @@ import dev.vulnlog.lib.core.toOpenVexStatus
 import dev.vulnlog.lib.core.vulnIdSourceUrl
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.Purl
+import dev.vulnlog.lib.model.vex.Rfc3339Timestamp
 import dev.vulnlog.lib.model.vex.VexStatement
 import dev.vulnlog.lib.model.vex.VexStatus
 import dev.vulnlog.lib.parse.vex.openvex.dto.DocumentDto
@@ -18,8 +19,6 @@ import dev.vulnlog.lib.parse.vex.openvex.dto.StatementDto
 import dev.vulnlog.lib.parse.vex.openvex.dto.SubcomponentDto
 import dev.vulnlog.lib.parse.vex.openvex.dto.VulnerabilityDto
 import java.time.Instant
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 private const val CONTEXT = "https://openvex.dev/ns/v0.2.0"
 private const val ROLE = "Document Creator"
@@ -39,18 +38,20 @@ object OpenVexMapper {
         timestamp: Instant,
         lastUpdated: Instant?,
         toolVersion: String,
-    ): DocumentDto =
-        DocumentDto(
+    ): DocumentDto {
+        val documentTimestamp = Rfc3339Timestamp.of(timestamp)
+        return DocumentDto(
             context = CONTEXT,
             id = documentId,
             author = toAuthor(project),
             role = ROLE,
-            timestamp = timestamp.toUtcTimestamp(),
-            lastUpdated = lastUpdated?.toUtcTimestamp(),
+            timestamp = documentTimestamp,
+            lastUpdated = lastUpdated?.let(Rfc3339Timestamp::of),
             version = version,
             tooling = "vulnlog/$toolVersion",
-            statements = statements.map { statement -> toStatement(statement, project, timestamp) },
+            statements = statements.map { statement -> toStatement(statement, project, documentTimestamp) },
         )
+    }
 
     private fun toAuthor(project: Project): String =
         project.contact?.let { contact -> "${project.author} ($contact)" } ?: project.author
@@ -58,7 +59,7 @@ object OpenVexMapper {
     private fun toStatement(
         statement: VexStatement,
         project: Project,
-        documentTimestamp: Instant,
+        documentTimestamp: Rfc3339Timestamp,
     ): StatementDto {
         val timestamp = toStatementTimestamp(statement, documentTimestamp)
         val notAffected = statement.status is VexStatus.NotAffected
@@ -85,11 +86,11 @@ object OpenVexMapper {
      */
     private fun toStatementTimestamp(
         statement: VexStatement,
-        documentTimestamp: Instant,
-    ): String =
-        statement.updated?.toUtcTimestamp()
-            ?: statement.published?.toUtcTimestamp()
-            ?: documentTimestamp.toUtcTimestamp()
+        documentTimestamp: Rfc3339Timestamp,
+    ): Rfc3339Timestamp =
+        statement.updated?.let(Rfc3339Timestamp::of)
+            ?: statement.published?.let(Rfc3339Timestamp::of)
+            ?: documentTimestamp
 
     private fun toVulnerability(statement: VexStatement): VulnerabilityDto =
         VulnerabilityDto(
@@ -108,8 +109,4 @@ object OpenVexMapper {
             identifiers = IdentifiersDto(purl = purl.value),
             subcomponents = packages.map { pkg -> SubcomponentDto(id = pkg.value) },
         )
-
-    private fun LocalDate.toUtcTimestamp(): String = "${this}T00:00:00Z"
-
-    private fun Instant.toUtcTimestamp(): String = truncatedTo(ChronoUnit.SECONDS).toString()
 }
