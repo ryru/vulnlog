@@ -3,6 +3,8 @@
 
 package dev.vulnlog.lib.parse.vex.openvex
 
+import dev.vulnlog.lib.core.OpenVexIdentity
+import dev.vulnlog.lib.core.nextOpenVexIdentity
 import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.vex.VexStatement
 import tools.jackson.core.JacksonException
@@ -29,13 +31,6 @@ sealed interface OpenVexDocumentResult {
     ) : OpenVexDocumentResult
 }
 
-private data class DocumentIdentity(
-    val id: String,
-    val version: Int,
-    val timestamp: Instant,
-    val lastUpdated: Instant?,
-)
-
 private val mapper = JsonMapper.builder().build()
 
 /**
@@ -54,9 +49,7 @@ fun generateOpenVexDocument(
     toolVersion: String,
 ): OpenVexDocumentResult {
     val existing = existingOutput?.let(::parseDocument)
-    val identity =
-        existing?.let(::priorIdentity)?.let { prior -> prior.copy(version = prior.version + 1, lastUpdated = now) }
-            ?: DocumentIdentity(newDocumentId(), 1, now, null)
+    val identity = nextOpenVexIdentity(existing?.let(::priorIdentity), newDocumentId, now)
     val document =
         OpenVexMapper.toDto(
             project = project,
@@ -81,12 +74,12 @@ private fun parseDocument(content: String): ObjectNode? =
         null
     }
 
-private fun priorIdentity(document: ObjectNode): DocumentIdentity? {
+private fun priorIdentity(document: ObjectNode): OpenVexIdentity? {
     val context = document.path("@context").asString(null) ?: return null
     if (!context.startsWith(CONTEXT_PREFIX)) return null
     val id = document.path("@id").asString(null) ?: return null
     val timestamp = document.path("timestamp").asString(null)?.let(::parseTimestamp) ?: return null
-    return DocumentIdentity(id, document.path("version").asInt(1), timestamp, null)
+    return OpenVexIdentity(id, document.path("version").asInt(1), timestamp, lastUpdated = null)
 }
 
 private fun parseTimestamp(value: String): Instant? =
