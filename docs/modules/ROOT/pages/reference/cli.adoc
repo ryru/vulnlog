@@ -94,7 +94,7 @@ Available on `report` and `suppress` commands.
 | Copy vulnerability entries from one Vulnlog file into one or more others.
 
 | xref:reference/cli-vex.adoc[vex]
-| Generate an OpenVEX document for one release.
+| Generate an OpenVEX document for one release or all releases.
 |===
 
 == Exit codes

@@ -36,14 +36,14 @@ The output format is OpenVEX 0.2.
 
 == Product identity
 
-The target release must declare at least one purl; the purls identify the products the statements apply to.
+The target release must declare at least one purl, a xref:glossary.adoc[Package URL] naming a release artifact; the purls identify the products the statements apply to.
 When the release declares none, the command fails with an error, because the resulting document could not name its product.
 See xref:reference/project-and-releases.adoc[Project and releases] for declaring release purls.
 
-Each product carries the vulnerability's package purls as subcomponents, so a statement never silently covers a second, unrelated introduction path of the same vulnerability.
+Each product carries the entry's package purls as subcomponents, so a statement never silently covers a second, unrelated introduction path of the same vulnerability.
 
-When a vulnerability carries tags, its statement applies only to the release purls that share a tag; purls without tags always apply.
-Vulnerabilities without tags apply to every purl of the release.
+When an entry carries tags, its statement applies only to the release purls that share a tag; purls without tags always apply.
+Entries without tags apply to every purl of the release.
 This scopes a statement to the affected artifact when a release ships several.
 See xref:reference/tags.adoc[Tags].
 
@@ -53,7 +53,7 @@ When a release ships several artifacts, `--tag` produces a document for one of t
 The document then anchors on exactly the release purls carrying the requested tag; purls without tags stay out of a tag-scoped document.
 A tag no purl carries fails like a release without purls.
 
-Statements are never dropped by scoping: a vulnerability whose products all fall outside the scope stays in the document with an empty `products` list, so consumers still see its verdict.
+Statements are never dropped by scoping: an entry whose products all fall outside the scope stays in the document with an empty `products` list, so consumers still see its verdict.
 
 Write each scope to its own output path.
 The document identity lives in the output file, so reusing one file for different scopes chains unrelated `@id` lineages.
@@ -61,7 +61,9 @@ The document identity lives in the output file, so reusing one file for differen
 [source]
 ----
 vulnlog vex vulnlog.yaml --release 1.2.0 --tag cli -o vex-cli.json
+Wrote: vex-cli.json
 vulnlog vex vulnlog.yaml --release 1.2.0 --tag "gradle plugin" -o vex-plugin.json
+Wrote: vex-plugin.json
 ----
 
 == Statement selection
