@@ -19,7 +19,7 @@ private const val CONTEXT_PREFIX = "https://openvex.dev/ns"
 
 sealed interface OpenVexDocumentResult {
     /**
-     * The existing output already carries the same statements; nothing to write.
+     * The baseline document already carries the same statements; the baseline stays current.
      */
     data object Unchanged : OpenVexDocumentResult
 
@@ -34,21 +34,21 @@ sealed interface OpenVexDocumentResult {
 private val mapper = JsonMapper.builder().build()
 
 /**
- * Generates the OpenVEX document with identity continuity. A valid existing output keeps its `@id`
- * and original `timestamp`, bumps the version, and records [now] as `last_updated`; an absent or
- * invalid one starts a new identity from [newDocumentId] issued at [now]. When the document equals
- * the existing output apart from `version`, `timestamp`, and `last_updated`, nothing is written and
- * the existing file stays untouched.
+ * Generates the OpenVEX document, continuing the identity of the [baseline] document when one is
+ * given: a valid baseline keeps its `@id` and original `timestamp`, bumps the version, and records
+ * [now] as `last_updated`. An absent or invalid baseline starts a new identity from [newDocumentId]
+ * issued at [now]. When the document equals the baseline apart from `version`, `timestamp`, and
+ * `last_updated`, the result is [OpenVexDocumentResult.Unchanged] and the baseline stays current.
  */
 fun generateOpenVexDocument(
     project: Project,
     statements: List<VexStatement>,
-    existingOutput: String?,
+    baseline: String?,
     newDocumentId: () -> String,
     now: Instant,
     toolVersion: String,
 ): OpenVexDocumentResult {
-    val existing = existingOutput?.let(::parseDocument)
+    val existing = baseline?.let(::parseDocument)
     val identity = nextOpenVexIdentity(existing?.let(::priorIdentity), newDocumentId, now)
     val document =
         OpenVexMapper.toDto(

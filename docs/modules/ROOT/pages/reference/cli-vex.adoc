@@ -4,7 +4,7 @@ Generates a VEX (Vulnerability Exploitability eXchange) document for one release
 
 [source]
 ----
-vulnlog vex <file> --release <id> [--tag <id>] [-o <path>]
+vulnlog vex <file> --release <id> [--tag <id>] [--baseline <path>] [-o <path>]
 ----
 
 A VEX document states, for every vulnerability recorded in the Vulnlog file, whether the chosen release is actually affected.
@@ -23,6 +23,9 @@ The output format is OpenVEX 0.2.
 
 | `--tag <id>`
 | Scope the document to the release purls carrying this tag. Repeatable; multiple tags widen the scope. See Scoping to an artifact.
+
+| `--baseline <path>`
+| Existing OpenVEX document to continue. Its `@id` and `timestamp` are kept and its `version` is incremented. Without this flag the document starts a new identity at version 1. The file must exist. See Document identity.
 
 | `-o, --output <path>`
 | Output file path, or `-` to write to stdout. Defaults to `vex.json` in the current directory.
@@ -142,10 +145,14 @@ Fields without a value in the Vulnlog file are omitted.
 
 == Document identity
 
-The command is stateless; identity lives in the output file.
-When the output file already exists and is an OpenVEX document, its `@id` and original `timestamp` are kept, its `version` is incremented, and `last_updated` records the regeneration time.
-When the regenerated document differs only in `version`, `timestamp`, and `last_updated`, the file is left untouched and the command reports `Unchanged`.
-A rerun in CI without YAML changes therefore never dirties the working tree.
+The command is stateless; identity comes from the `--baseline` flag.
+Without the flag every run produces a fresh document: a new `@id`, `version` 1, and the generation time as `timestamp`.
+With `--baseline <path>` the named OpenVEX document is continued: its `@id` and original `timestamp` are kept, its `version` is incremented, and `last_updated` records the regeneration time.
+
+When the regenerated document differs from the baseline only in `version`, `timestamp`, and `last_updated`, nothing changed: an output path equal to the baseline is left untouched and the command reports `Unchanged`; any other output target receives the baseline content unmodified.
+The usual update-in-place invocation passes the same path to `--baseline` and `--output`, so a rerun in CI without YAML changes never dirties the working tree.
+
+A baseline that is not a valid OpenVEX document starts a new identity; the command trusts its inputs and applies no further heuristics.
 
 == Suppressing scanner findings
 
@@ -170,10 +177,10 @@ vulnlog vex vulnlog.yaml --release 1.2.0
 Wrote: vex.json
 ----
 
-.Rerun without changes
+.Update the document in place, keeping its identity
 [source]
 ----
-vulnlog vex vulnlog.yaml --release 1.2.0
+vulnlog vex vulnlog.yaml --release 1.2.0 --baseline vex.json -o vex.json
 Unchanged: vex.json
 ----
 

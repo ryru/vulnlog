@@ -67,13 +67,19 @@ class VexCommand : CliktCommand(name = "vex") {
     ).multiple()
         .unique()
 
+    val baseline: Path? by option(
+        "--baseline",
+        help =
+            "Existing OpenVEX document to continue: its @id and timestamp are kept and its version " +
+                "is incremented. Without this flag the document starts a new identity at version 1. " +
+                "When the output path equals the baseline and the statements are unchanged, the file " +
+                "is left untouched.",
+    ).convert { Path.of(it) }
+
     val output: FileOutputOption by option(
         "-o",
         "--output",
-        help =
-            "Output file path, or '-' to write to stdout. Defaults to vex.json in the current directory. " +
-                "An existing output file provides the document identity: its @id and timestamp are kept " +
-                "and its version is incremented.",
+        help = "Output file path, or '-' to write to stdout. Defaults to vex.json in the current directory.",
     ).convert(conversion = OptionCallTransformContext::toOutputFileOption)
         .default(FileOutputOption.File(Path.of("vex.json")))
 
@@ -98,37 +104,59 @@ class VexCommand : CliktCommand(name = "vex") {
             "generated ${statements.size} VEX statements for release '${targetRelease.id.value}'",
         )
 
-        val existingOutput =
-            (output as? FileOutputOption.File)?.path?.takeIf { it.exists() }?.readText()
+        val baselineContent = baseline?.let(::readBaselineOrFail)
         val result =
             generateOpenVexDocument(
                 project = vulnlogFile.project,
                 statements = statements,
-                existingOutput = existingOutput,
+                baseline = baselineContent,
                 newDocumentId = { "https://vulnlog.dev/vex/${UUID.randomUUID()}" },
                 now = Instant.now(),
                 toolVersion = BuildInfo.VERSION,
             )
 
         when (result) {
-            OpenVexDocumentResult.Unchanged ->
-                echoStatus(formatStatus(StatusVerb.UNCHANGED, (output as FileOutputOption.File).path.toString()))
-
-            is OpenVexDocumentResult.Document ->
-                when (val target = output) {
-                    is FileOutputOption.File -> {
-                        writeVexDocument(
-                            { echoStatus(it) },
-                            { echoMessage(it) },
-                            target,
-                            result.content,
-                        )
-                        diagnosticSink().verbose("wrote ${target.path}")
-                    }
-
-                    FileOutputOption.Stdout -> echo(result.content, trailingNewline = false)
-                }
+            OpenVexDocumentResult.Unchanged -> emitDocument(baselineContent.orEmpty(), unchanged = true)
+            is OpenVexDocumentResult.Document -> emitDocument(result.content, unchanged = false)
         }
+    }
+
+    /**
+     * Writes the document to the output target. An unchanged document whose output is the baseline
+     * itself is already current on disk and is only reported, never rewritten.
+     */
+    private fun emitDocument(
+        content: String,
+        unchanged: Boolean,
+    ) {
+        when (val target = output) {
+            is FileOutputOption.File ->
+                if (unchanged && target.path.isSamePathAs(baseline)) {
+                    echoStatus(formatStatus(StatusVerb.UNCHANGED, target.path.toString()))
+                } else {
+                    writeVexDocument(
+                        { echoStatus(it) },
+                        { echoMessage(it) },
+                        target,
+                        content,
+                    )
+                    diagnosticSink().verbose("wrote ${target.path}")
+                }
+
+            FileOutputOption.Stdout -> echo(content, trailingNewline = false)
+        }
+    }
+
+    private fun Path.isSamePathAs(other: Path?): Boolean =
+        other != null && toAbsolutePath().normalize() == other.toAbsolutePath().normalize()
+
+    private fun readBaselineOrFail(path: Path): String {
+        if (!path.exists()) {
+            echoMessage(formatMessage(Severity.ERROR, "baseline file '$path' does not exist"))
+            echoMessage(formatHint("point --baseline at an existing OpenVEX document, or drop the flag"))
+            throw ProgramResult(ExitCode.INVALID_FLAG_VALUE.code)
+        }
+        return path.readText()
     }
 
     private fun resolveTargetReleaseOrFail(vulnlogFile: VulnlogFile): ReleaseEntry =

@@ -88,15 +88,20 @@ class VexCommandTest :
                 }
             }
 
-            test("a rerun without changes reports the output as unchanged") {
+            test("a rerun against its own output as baseline reports the output as unchanged") {
                 withTempFile(content = vulnlogYamlWithPurls()) { input ->
                     withTempDir(prefix = "vex-out") { outputDir ->
                         val target = outputDir.resolve("vex.json")
-                        val arguments = "${input.absolutePath} --release 1.0.0 -o ${target.toAbsolutePath()}"
-                        VexCommand().test(arguments).statusCode shouldBe 0
+                        VexCommand()
+                            .test("${input.absolutePath} --release 1.0.0 -o ${target.toAbsolutePath()}")
+                            .statusCode shouldBe 0
                         val firstContent = target.readText()
 
-                        val result = VexCommand().test(arguments)
+                        val result =
+                            VexCommand().test(
+                                "${input.absolutePath} --release 1.0.0 " +
+                                    "--baseline ${target.toAbsolutePath()} -o ${target.toAbsolutePath()}",
+                            )
 
                         result.statusCode shouldBe 0
                         result.stderr shouldContain "Unchanged: ${target.toAbsolutePath()}"
@@ -105,7 +110,29 @@ class VexCommandTest :
                 }
             }
 
-            test("a rerun with changed statements keeps the id and timestamp and bumps the version") {
+            test("an unchanged document is still written when the output differs from the baseline") {
+                withTempFile(content = vulnlogYamlWithPurls()) { input ->
+                    withTempDir(prefix = "vex-out") { outputDir ->
+                        val baseline = outputDir.resolve("vex.json")
+                        VexCommand()
+                            .test("${input.absolutePath} --release 1.0.0 -o ${baseline.toAbsolutePath()}")
+                            .statusCode shouldBe 0
+                        val target = outputDir.resolve("copy.json")
+
+                        val result =
+                            VexCommand().test(
+                                "${input.absolutePath} --release 1.0.0 " +
+                                    "--baseline ${baseline.toAbsolutePath()} -o ${target.toAbsolutePath()}",
+                            )
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldContain "Wrote: ${target.toAbsolutePath()}"
+                        target.readText() shouldBe baseline.readText()
+                    }
+                }
+            }
+
+            test("a rerun with a baseline and changed statements keeps the identity and bumps the version") {
                 withTempDir(prefix = "vex-out") { outputDir ->
                     val target = outputDir.resolve("vex.json")
                     withTempFile(content = vulnlogYamlWithPurls()) { input ->
@@ -120,7 +147,8 @@ class VexCommandTest :
                     withTempFile(content = vulnlogYamlWithPurls(cveId = "CVE-2026-5678")) { input ->
                         val result =
                             VexCommand().test(
-                                "${input.absolutePath} --release 1.0.0 -o ${target.toAbsolutePath()}",
+                                "${input.absolutePath} --release 1.0.0 " +
+                                    "--baseline ${target.toAbsolutePath()} -o ${target.toAbsolutePath()}",
                             )
 
                         result.statusCode shouldBe 0
@@ -130,6 +158,25 @@ class VexCommandTest :
                         content shouldContain "\"version\": 2"
                         content shouldContain "\"last_updated\""
                         content shouldContain "CVE-2026-5678"
+                    }
+                }
+            }
+
+            test("a rerun without a baseline starts a new identity even when the output exists") {
+                withTempFile(content = vulnlogYamlWithPurls()) { input ->
+                    withTempDir(prefix = "vex-out") { outputDir ->
+                        val target = outputDir.resolve("vex.json")
+                        val arguments = "${input.absolutePath} --release 1.0.0 -o ${target.toAbsolutePath()}"
+                        VexCommand().test(arguments).statusCode shouldBe 0
+                        val documentId = Regex("\"@id\": \"(https[^\"]+)\"").find(target.readText())!!.groupValues[1]
+
+                        val result = VexCommand().test(arguments)
+
+                        result.statusCode shouldBe 0
+                        result.stderr shouldContain "Wrote: ${target.toAbsolutePath()}"
+                        val content = target.readText()
+                        content shouldContain "\"version\": 1"
+                        content shouldNotContain "\"@id\": \"$documentId\""
                     }
                 }
             }
@@ -211,6 +258,17 @@ class VexCommandTest :
                     result.statusCode shouldBe ExitCode.VALIDATION_ERROR.code
                     result.stderr shouldContain "error: release '1.0.0' has no vulnerabilities to state"
                     result.stderr shouldContain "hint: an OpenVEX document needs at least one statement"
+                }
+            }
+
+            test("rejects a missing baseline file") {
+                withTempFile(content = vulnlogYamlWithPurls()) { input ->
+                    val result =
+                        VexCommand().test("${input.absolutePath} --release 1.0.0 --baseline missing.json -o -")
+
+                    result.statusCode shouldBe ExitCode.INVALID_FLAG_VALUE.code
+                    result.stderr shouldContain "error: baseline file 'missing.json' does not exist"
+                    result.stderr shouldContain "hint: point --baseline at an existing OpenVEX document"
                 }
             }
 
