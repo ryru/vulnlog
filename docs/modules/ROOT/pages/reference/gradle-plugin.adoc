@@ -339,12 +339,14 @@ It fails the build only on invalid input, for example an unknown `fixedIn` or in
 ./gradlew vulnlogChangelogReport
 ----
 
+[#_vulnlogopenvex]
 === `vulnlogOpenVex`
 
-Generates an OpenVEX document from a single Vulnlog file.
-See xref:reference/cli-vex-openvex.adoc[`vulnlog vex openvex`] for the document contents and for which entries it leaves out.
+NOTE: The Vulnlog OpenVEX export feature is currently incubating.
+Its behavior and configuration options may change in the upcoming releases.
 
-Settings live under `vex { openvex { } }`.
+Writes an OpenVEX document from a single Vulnlog file, so Trivy and Grype can drop the findings you triaged.
+See xref:reference/cli-vex-openvex.adoc[`vulnlog vex openvex`] for the purls to declare and what the document contains.
 
 [source,kotlin]
 ----
@@ -352,6 +354,9 @@ vulnlog {
     vex {
         openvex {
             outputFile.set(layout.buildDirectory.file("vulnlog/vex.json"))  // optional
+            release.set("1.2.0")                                            // optional
+            tags.set(setOf("container"))                                    // optional
+            baseline.set(layout.projectDirectory.file(".vex/app.openvex.json"))  // optional
         }
     }
 }
@@ -364,18 +369,68 @@ vulnlog {
 | `outputFile`
 | `build/vulnlog/vex.json`
 | File where the document is written.
+
+| `release`
+| _(none)_
+| Write the document for this release only. See xref:reference/cli-vex-openvex.adoc#scoping[One document per release and artifact].
+
+| `tags`
+| _(empty)_
+| Keep only the vulnerabilities and release purls carrying one of these tags.
+
+| `baseline`
+| _(none)_
+| The committed document to continue, see xref:reference/cli-vex-openvex.adoc#identity[Keep a published document stable]. The first run issues a new document when the file does not exist yet.
 |===
 
-Only one input file is supported, since a document is anchored on the purls of one project.
-The task fails when `files` holds more than one entry.
+The task fails when `files` holds more than one Vulnlog file, when no statement applies, or when the `baseline` cannot be continued.
 
-It also fails when no statement applies, either because no release declares purls or because no vulnerability entry references a release that does.
-Releases without purls are left out of the document and named in a `warning:` line.
+The task writes only to `outputFile`, so it stays cacheable, and `baseline` must not point at the same file.
+Run <<_vulnlogopenvexupdate,`vulnlogOpenVexUpdate`>> to copy the result over the `baseline`.
 
-.Example
+To publish one document per artifact and release, register a task for each:
+
+[source,kotlin]
+----
+import dev.vulnlog.gradle.VulnlogOpenVexTask
+
+tasks.register<VulnlogOpenVexTask>("vulnlogOpenVexContainer") {
+    group = "vulnlog"
+    files.from("vulnlog.yaml")
+    release.set("1.2.0")
+    tags.set(setOf("container"))
+    baseline.set(layout.projectDirectory.file("vex/1.2.0-container.json"))
+    outputFile.set(layout.buildDirectory.file("vulnlog/1.2.0-container.json"))
+}
+----
+
+[#_vulnlogopenvexupdate]
+=== `vulnlogOpenVexUpdate`
+
+NOTE: The Vulnlog OpenVEX export feature is currently incubating.
+Its behavior and configuration options may change in the upcoming releases.
+
+Runs `vulnlogOpenVex` and copies its document over the configured `baseline`, so the committed document follows the Vulnlog file.
+The file is left as it is while nothing but the timestamp would change.
+Commit it after each run that wrote it.
+
 [source,shell]
 ----
-./gradlew vulnlogOpenVex
+./gradlew vulnlogOpenVexUpdate
+----
+
+For a task you registered yourself, register an update task next to it:
+
+[source,kotlin]
+----
+import dev.vulnlog.gradle.VulnlogOpenVexTask
+import dev.vulnlog.gradle.VulnlogOpenVexUpdateTask
+
+tasks.register<VulnlogOpenVexUpdateTask>("vulnlogOpenVexContainerUpdate") {
+    group = "vulnlog"
+    generatedFile.set(tasks.named<VulnlogOpenVexTask>("vulnlogOpenVexContainer").flatMap { it.outputFile })
+    baseline.set(layout.projectDirectory.file("vex/1.2.0-container.json"))
+}
 ----
 
 === `VulnlogCopyTask`

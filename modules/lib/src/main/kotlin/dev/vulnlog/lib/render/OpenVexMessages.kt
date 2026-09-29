@@ -1,0 +1,126 @@
+// Copyright the Vulnlog contributors
+// SPDX-License-Identifier: Apache-2.0
+
+package dev.vulnlog.lib.render
+
+import dev.vulnlog.lib.app.FilterRejected
+import dev.vulnlog.lib.app.OpenVexOutcome
+import dev.vulnlog.lib.core.canonical
+import dev.vulnlog.lib.core.vex.vexStatusKind
+import dev.vulnlog.lib.model.vex.openvex.OpenVexBaselineProblem
+import dev.vulnlog.lib.model.vex.openvex.OpenVexCollection
+import dev.vulnlog.lib.model.vex.openvex.OpenVexEmptyReason
+import dev.vulnlog.lib.model.vex.openvex.OpenVexIdentityField
+import dev.vulnlog.lib.model.vex.openvex.OpenVexSkippedEntry
+
+fun renderOpenVexReport(outcome: OpenVexOutcome): List<OpenVexLine> =
+    when (outcome) {
+        is FilterRejected, is OpenVexOutcome.BaselineRejected -> emptyList()
+        is OpenVexOutcome.NoStatementApplies -> collectionLines(outcome.collection)
+        is OpenVexOutcome.Generated -> collectionLines(outcome.collection) + countLine(outcome.collection)
+    }
+
+fun renderOpenVexBaselineProblem(
+    target: String,
+    problem: OpenVexBaselineProblem,
+): String =
+    when (problem) {
+        OpenVexBaselineProblem.NotOpenVex -> "baseline '$target' is not an OpenVEX document"
+
+        is OpenVexBaselineProblem.OtherFormatVersion ->
+            "baseline '$target' is an OpenVEX ${problem.declared} document, " +
+                "but this run writes OpenVEX ${problem.required.version}"
+
+        is OpenVexBaselineProblem.InvalidIdentity -> {
+            val (field, expected) =
+                when (problem.field) {
+                    OpenVexIdentityField.ID -> "@id" to "an absolute IRI"
+                    OpenVexIdentityField.TIMESTAMP -> "timestamp" to "an RFC 3339 timestamp"
+                    OpenVexIdentityField.VERSION -> "version" to "a whole number from 1 to ${Int.MAX_VALUE - 1}"
+                }
+            val found = problem.value?.let { value -> "an invalid '$field' '$value'" } ?: "no '$field'"
+            "baseline '$target' has $found, expected $expected"
+        }
+    }
+
+fun renderOpenVexEmptyHint(reason: OpenVexEmptyReason): String =
+    when (reason) {
+        OpenVexEmptyReason.NO_RELEASE_DECLARES_PURLS -> "declare 'purls' on the releases you want the document to cover"
+        OpenVexEmptyReason.NO_ENTRY_MATCHES_RELEASE_PURL_TAGS ->
+            "tag the vulnerability entries with the tags of the release purls they apply to"
+
+        OpenVexEmptyReason.NO_ENTRY_IN_TAG_SCOPE ->
+            "no vulnerability entry and release purl in scope share one of the requested tags"
+
+        OpenVexEmptyReason.NO_ENTRY_IN_RELEASE_SCOPE -> "no vulnerability entry applies to the release in scope"
+        OpenVexEmptyReason.NO_ENTRY_ON_ANCHORED_RELEASE ->
+            "no vulnerability entry references a release that declares purls"
+    }
+
+fun renderOpenVexWritten(
+    target: String,
+    outcome: OpenVexOutcome.Generated,
+): String =
+    "wrote $target: openvex format, version ${outcome.version.value}, " +
+        pluralize(outcome.collection.statements.size, "statement")
+
+private fun collectionLines(collection: OpenVexCollection): List<OpenVexLine> =
+    scopeLines(collection).map(OpenVexLine::Verbose) +
+        listOfNotNull(
+            skippedReleasesLine(collection)?.let(OpenVexLine::Warning),
+            anchorsLine(collection)?.let(OpenVexLine::Verbose),
+        ) +
+        collection.skippedEntries
+            .map(::skippedEntryLine)
+            .sorted()
+            .map(OpenVexLine::Debug)
+
+private fun scopeLines(collection: OpenVexCollection): List<String> =
+    listOfNotNull(
+        collection.scope.releases
+            .takeIf { it.isNotEmpty() }
+            ?.let { releases -> "release scope: ${releases.joinToString(", ") { it.value }}" },
+        collection.scope.tags
+            .takeIf { it.isNotEmpty() }
+            ?.let { tags -> "tag scope matched tags: ${tags.joinToString(", ") { it.value }}" },
+    )
+
+/** A warning, because a release without purls drops out of the document without any other trace. */
+private fun skippedReleasesLine(collection: OpenVexCollection): String? {
+    if (collection.skippedReleases.isEmpty()) return null
+    val names = collection.skippedReleases.joinToString(", ") { "'${it.value}'" }
+    val subject = if (collection.scope.tags.isEmpty()) "releases without purls" else "releases without purls in scope"
+    return "$subject are not part of the document: $names"
+}
+
+private fun anchorsLine(collection: OpenVexCollection): String? {
+    if (collection.anchors.isEmpty()) return null
+    val detail =
+        collection.anchors.entries.joinToString(", ") { "'${it.key.value}' (${pluralize(it.value.size, "purl")})" }
+    return "anchored on ${pluralize(collection.anchors.size, "release")} with purls: $detail"
+}
+
+private fun skippedEntryLine(entry: OpenVexSkippedEntry): String =
+    when (entry) {
+        is OpenVexSkippedEntry.NoRelease -> "skipped ${entry.id.canonical()}: it references no release"
+        is OpenVexSkippedEntry.NoAnchoredRelease ->
+            "skipped ${entry.id.canonical()}: no release it applies to declares purls in scope"
+
+        is OpenVexSkippedEntry.NoTags -> "skipped ${entry.id.canonical()}: it has no tags to match a release purl"
+        is OpenVexSkippedEntry.NoMatchingReleasePurl ->
+            "skipped ${entry.id.canonical()}: no release purl in scope shares one of its tags"
+    }
+
+private fun countLine(collection: OpenVexCollection): OpenVexLine {
+    val byStatus =
+        collection.statements
+            .groupingBy { vexStatusKind(it.status).name.lowercase() }
+            .eachCount()
+    val detail = byStatus.entries.sortedBy { it.key }.joinToString(", ") { "${it.value} ${it.key}" }
+    return OpenVexLine.Verbose("collected ${pluralize(collection.statements.size, "statement")}: $detail")
+}
+
+private fun pluralize(
+    count: Int,
+    noun: String,
+): String = if (count == 1) "1 $noun" else "$count ${noun}s"

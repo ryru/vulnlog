@@ -15,6 +15,7 @@ import dev.vulnlog.lib.fixtures.tagEntry
 import dev.vulnlog.lib.fixtures.vulnerability
 import dev.vulnlog.lib.fixtures.vulnlogFile
 import dev.vulnlog.lib.model.Disposition
+import dev.vulnlog.lib.model.Project
 import dev.vulnlog.lib.model.ReporterType
 import dev.vulnlog.lib.model.Severity
 import dev.vulnlog.lib.model.Verdict
@@ -24,6 +25,7 @@ import dev.vulnlog.lib.model.finding.Rule
 import dev.vulnlog.lib.model.finding.ValidationFinding
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -40,6 +42,36 @@ class DomainRulesTest :
             val findings = applyV1Rules(file)
 
             findings.shouldBeEmpty()
+        }
+
+        context("blank project fields") {
+
+            test("filled project fields produce no finding") {
+                val file = vulnlogFile(project = Project("org", "project", "author", "security@example.com"))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.BLANK_PROJECT_FIELD }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a blank or whitespace-only field is an error") {
+                val file = vulnlogFile(project = Project(organization = " ", name = "project", author = ""))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.BLANK_PROJECT_FIELD }
+
+                findings.map { it.path } shouldContainExactly listOf("project.organization", "project.author")
+                findings.first().severity shouldBe FindingSeverity.ERROR
+                findings.first().message shouldBe "Project 'organization' must not be blank."
+            }
+
+            test("a contact is optional but must not be blank when given") {
+                val absent = vulnlogFile(project = Project("org", "project", "author", contact = null))
+                val blank = vulnlogFile(project = Project("org", "project", "author", contact = "  "))
+
+                applyV1Rules(absent).filter { it.rule == Rule.BLANK_PROJECT_FIELD }.shouldBeEmpty()
+                applyV1Rules(blank).filter { it.rule == Rule.BLANK_PROJECT_FIELD }.map { it.path } shouldContainExactly
+                    listOf("project.contact")
+            }
         }
 
         context("duplicate release IDs") {
@@ -608,6 +640,174 @@ class DomainRulesTest :
                 val findings = applyV1Rules(file).filter { it.rule == Rule.ACCEPTED_CRITICAL_RISK }
 
                 findings.shouldBeEmpty()
+            }
+        }
+
+        context("releases without purls") {
+
+            test("a file that declares no purls anywhere produces no finding") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0"), releaseEntry("1.1.0")),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASE_WITHOUT_PURLS }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("warns for each release without purls once another release declares them") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.0.0", purls = listOf(mavenPurlEntry("pkg:maven/com.acme/app@1.0.0"))),
+                                releaseEntry("1.1.0"),
+                                releaseEntry("1.2.0"),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0"), release("1.2.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASE_WITHOUT_PURLS }
+
+                findings.map { it.path } shouldContainExactly listOf("releases[1.1.0]", "releases[1.2.0]")
+                findings.first().severity shouldBe FindingSeverity.WARNING
+                findings.first().message shouldContain "declares no purls"
+            }
+        }
+
+        context("vulnerabilities without a date") {
+
+            val purls = listOf(mavenPurlEntry("pkg:maven/com.acme/app@1.0.0", tags = listOf("app")))
+            val app = listOf(tag("app"))
+
+            test("a file that declares no purls produces no finding") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0")),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2026-0001"), releases = listOf(release("1.0.0")), tags = app),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("warns for each undated entry once a release declares purls") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0", purls = purls)),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2026-0001"), releases = listOf(release("1.0.0")), tags = app),
+                                vulnerability(
+                                    cve("CVE-2026-0002"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    reports = listOf(report(ReporterType.TRIVY)),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.map { it.path } shouldContainExactly
+                    listOf("vulnerabilities[CVE-2026-0001]", "vulnerabilities[CVE-2026-0002]")
+                findings.first().severity shouldBe FindingSeverity.WARNING
+                findings.first().message shouldBe
+                    "Vulnerability 'CVE-2026-0001' leaves its VEX statement undated on release '1.0.0'. Add either " +
+                    "'analyzed_at', a report 'at' or 'resolution.at', or set 'published_at' on the release."
+            }
+
+            test("an analysis date for a verdict or a dated report is enough") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0", purls = purls)),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    analyzedAt = LocalDate.of(2026, 1, 20),
+                                    verdict = Verdict.Affected(Severity.HIGH),
+                                ),
+                                vulnerability(
+                                    cve("CVE-2026-0002"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    reports = listOf(report(ReporterType.TRIVY, at = LocalDate.of(2026, 1, 20))),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("only releases with purls matching the entry's tags are checked") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0"), releaseEntry("1.1.0", purls = purls)),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2026-0001"), releases = listOf(release("1.0.0")), tags = app),
+                                vulnerability(
+                                    cve("CVE-2026-0002"),
+                                    releases = listOf(release("1.0.0")),
+                                    tags = listOf(tag("build")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.single().message shouldContain
+                    "'CVE-2026-0001' leaves its VEX statement undated on release '1.1.0'."
+            }
+
+            test("names every release whose statement stays undated, such as an unpublished fix release") {
+                val fixPurls = listOf(mavenPurlEntry("pkg:maven/com.acme/app@1.1.0", tags = listOf("app")))
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.0.0", purls = purls),
+                                releaseEntry("1.1.0", purls = fixPurls),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    analyzedAt = LocalDate.of(2026, 1, 20),
+                                    verdict = Verdict.Affected(Severity.HIGH),
+                                    resolution = resolution(release = "1.1.0"),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.single().message shouldContain "undated on release '1.1.0'."
             }
         }
     })

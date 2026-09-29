@@ -4,7 +4,10 @@
 package dev.vulnlog.lib.core.validation
 
 import dev.vulnlog.lib.core.canonical
+import dev.vulnlog.lib.core.vex.filterReleasePurlsMatchingVulnerabilityEntryTags
+import dev.vulnlog.lib.core.vex.releaseStatuses
 import dev.vulnlog.lib.model.Disposition
+import dev.vulnlog.lib.model.ReleaseEntry
 import dev.vulnlog.lib.model.ReporterType
 import dev.vulnlog.lib.model.Severity
 import dev.vulnlog.lib.model.Verdict
@@ -16,6 +19,7 @@ import dev.vulnlog.lib.model.finding.ValidationFinding
 
 val v1DomainRules =
     listOf(
+        ::validateProjectFieldsAreNotBlank,
         ::validateEveryReleaseIsReferenced,
         ::validateEveryTagIsReferenced,
         ::validateUniqueReleases,
@@ -30,7 +34,26 @@ val v1DomainRules =
         ::validateSourceInReportIsDefinedWhenOther,
         ::validateNoAcceptedCriticalRisk,
         ::validateReleasesAreDeclaredInPublicationOrder,
+        ::validateReleasesDeclarePurls,
+        ::validateVulnerabilitiesAreDated,
     )
+
+/** A blank project field names nobody, and VEX documents take their author and supplier from these fields. */
+private fun validateProjectFieldsAreNotBlank(file: VulnlogFile): List<ValidationFinding> =
+    listOf(
+        "organization" to file.project.organization,
+        "name" to file.project.name,
+        "author" to file.project.author,
+        "contact" to file.project.contact,
+    ).filter { (_, value) -> value != null && value.isBlank() }
+        .map { (field, _) ->
+            ValidationFinding(
+                severity = FindingSeverity.ERROR,
+                rule = Rule.BLANK_PROJECT_FIELD,
+                path = "project.$field",
+                message = "Project '$field' must not be blank.",
+            )
+        }
 
 private fun validateEveryReleaseIsReferenced(file: VulnlogFile): List<ValidationFinding> {
     val usedReleases = file.vulnerabilities.flatMap { vulnerability -> vulnerability.releases }.toSet()
@@ -289,4 +312,46 @@ private fun validateReleasesAreDeclaredInPublicationOrder(file: VulnlogFile): Li
                 null
             }
         }
+}
+
+private fun validateReleasesDeclarePurls(file: VulnlogFile): List<ValidationFinding> {
+    if (file.releases.none { release -> release.purls.isNotEmpty() }) return emptyList()
+
+    return file.releases
+        .filter { release -> release.purls.isEmpty() }
+        .map { release ->
+            ValidationFinding(
+                severity = FindingSeverity.WARNING,
+                rule = Rule.RELEASE_WITHOUT_PURLS,
+                path = "releases[${release.id.value}]",
+                message = "Release '${release.id.value}' declares no purls and is left out of VEX documents.",
+            )
+        }
+}
+
+private fun validateVulnerabilitiesAreDated(file: VulnlogFile): List<ValidationFinding> {
+    if (file.releases.none { release -> release.purls.isNotEmpty() }) return emptyList()
+
+    return file.vulnerabilities.mapNotNull { vuln ->
+        val releasesWithMatchingPurls =
+            file.releases
+                .filter { release -> filterReleasePurlsMatchingVulnerabilityEntryTags(release, vuln).isNotEmpty() }
+                .map(ReleaseEntry::id)
+                .toSet()
+        val undated =
+            releaseStatuses(vuln, file)
+                .filter { status -> status.since == null && status.release in releasesWithMatchingPurls }
+                .map { status -> "'${status.release.value}'" }
+        if (undated.isEmpty()) return@mapNotNull null
+        val releases = if (undated.size == 1) "release" else "releases"
+        ValidationFinding(
+            severity = FindingSeverity.WARNING,
+            rule = Rule.VULNERABILITY_WITHOUT_DATE,
+            path = "vulnerabilities[${vuln.id.canonical()}]",
+            message =
+                "Vulnerability '${vuln.id.canonical()}' leaves its VEX statement undated on $releases " +
+                    "${undated.joinToString(", ")}. Add either 'analyzed_at', a report 'at' or 'resolution.at', " +
+                    "or set 'published_at' on the release.",
+        )
+    }
 }
