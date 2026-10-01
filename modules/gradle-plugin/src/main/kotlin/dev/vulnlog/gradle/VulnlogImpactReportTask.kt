@@ -8,6 +8,9 @@ import dev.vulnlog.gradle.internal.diagnosticSink
 import dev.vulnlog.gradle.internal.vulnlogFileInputs
 import dev.vulnlog.gradle.reporting.sharedProjectOrFail
 import dev.vulnlog.gradle.validation.validateInputOrFail
+import dev.vulnlog.lib.codec.report.HtmlReportEncoder
+import dev.vulnlog.lib.codec.report.HtmlReportMapper
+import dev.vulnlog.lib.codec.report.dto.FilterDataDto
 import dev.vulnlog.lib.core.StatusVerb
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.filter.FilterRequest
@@ -16,16 +19,13 @@ import dev.vulnlog.lib.core.formatStatus
 import dev.vulnlog.lib.core.reporting.collectReportingEntries
 import dev.vulnlog.lib.core.reporting.mergeReportingEntries
 import dev.vulnlog.lib.core.reporting.renderReportingCounts
+import dev.vulnlog.lib.document.validation.ValidVulnlogProject
 import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.VerdictKind
 import dev.vulnlog.lib.model.VulnlogFile
 import dev.vulnlog.lib.model.reporting.ReportingEntry
 import dev.vulnlog.lib.model.reporting.WorkState
-import dev.vulnlog.lib.parse.reporting.HtmlReportMapper
-import dev.vulnlog.lib.parse.reporting.HtmlReportWriter
-import dev.vulnlog.lib.parse.reporting.dto.FilterDataDto
-import dev.vulnlog.lib.parse.validation.ValidVulnlogProject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
@@ -114,7 +114,7 @@ abstract class VulnlogImpactReportTask : DefaultTask() {
                 inputs = inputNames,
                 filter = filterData,
             )
-        val reportContent = HtmlReportWriter.renderHtmlReport(reportData)
+        val reportContent = HtmlReportEncoder.encode(reportData)
 
         val out = outputFile.get().asFile
         out.parentFile?.mkdirs()

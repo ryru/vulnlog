@@ -1,114 +1,114 @@
 [
   {
-    "name": "dev.vulnlog.lib.parse.dto.VulnlogFileV1Dto",
+    "name": "dev.vulnlog.lib.document.dto.VulnlogFileV1Dto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.ProjectDto",
+    "name": "dev.vulnlog.lib.document.dto.ProjectDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.ReleaseEntryDto",
+    "name": "dev.vulnlog.lib.document.dto.ReleaseEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.ReleasePurlEntryDto",
+    "name": "dev.vulnlog.lib.document.dto.ReleasePurlEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.TagEntryDto",
+    "name": "dev.vulnlog.lib.document.dto.TagEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.VulnerabilityEntryDto",
+    "name": "dev.vulnlog.lib.document.dto.VulnerabilityEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.ReportEntryDto",
+    "name": "dev.vulnlog.lib.document.dto.ReportEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.ResolutionDto",
+    "name": "dev.vulnlog.lib.document.dto.ResolutionDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.dto.SuppressionDto",
+    "name": "dev.vulnlog.lib.document.dto.SuppressionDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.suppression.trivy.dto.TrivySuppressionDto",
+    "name": "dev.vulnlog.lib.codec.suppression.trivy.dto.TrivySuppressionDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.suppression.trivy.dto.TrivyVulnerabilityEntryDto",
+    "name": "dev.vulnlog.lib.codec.suppression.trivy.dto.TrivyVulnerabilityEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.suppression.snyk.dto.SnykSuppressionDto",
+    "name": "dev.vulnlog.lib.codec.suppression.snyk.dto.SnykSuppressionDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.suppression.snyk.dto.SnykIgnoreEntryDto",
+    "name": "dev.vulnlog.lib.codec.suppression.snyk.dto.SnykIgnoreEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.suppression.generic.dto.GenericSuppressionDto",
+    "name": "dev.vulnlog.lib.codec.suppression.generic.dto.GenericSuppressionDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.suppression.generic.dto.GenericVulnerabilityEntryDto",
+    "name": "dev.vulnlog.lib.codec.suppression.generic.dto.GenericVulnerabilityEntryDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.reporting.dto.FilterDataDto",
+    "name": "dev.vulnlog.lib.codec.report.dto.FilterDataDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.reporting.dto.ProjectDataDto",
+    "name": "dev.vulnlog.lib.codec.report.dto.ProjectDataDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.reporting.dto.ReportDataDto",
+    "name": "dev.vulnlog.lib.codec.report.dto.ReportDataDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "dev.vulnlog.lib.parse.reporting.dto.ReportEntryDataDto",
+    "name": "dev.vulnlog.lib.codec.report.dto.ReportEntryDataDto",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true

@@ -14,22 +14,22 @@ import dev.vulnlog.cli.BuildInfo
 import dev.vulnlog.cli.shell.filter.resolveFilterOrFail
 import dev.vulnlog.cli.shell.reporting.sharedProjectOrFail
 import dev.vulnlog.cli.shell.validation.validateInputOrFail
+import dev.vulnlog.lib.codec.report.HtmlReportEncoder
+import dev.vulnlog.lib.codec.report.HtmlReportMapper.toDto
+import dev.vulnlog.lib.codec.report.dto.FilterDataDto
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.filter.FilterRequest
 import dev.vulnlog.lib.core.filter.applyFilter
 import dev.vulnlog.lib.core.reporting.collectReportingEntries
 import dev.vulnlog.lib.core.reporting.mergeReportingEntries
 import dev.vulnlog.lib.core.reporting.renderReportingCounts
+import dev.vulnlog.lib.document.validation.ValidVulnlogProject
 import dev.vulnlog.lib.model.Disposition
 import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.VerdictKind
 import dev.vulnlog.lib.model.VulnlogFile
 import dev.vulnlog.lib.model.reporting.ReportingEntry
 import dev.vulnlog.lib.model.reporting.WorkState
-import dev.vulnlog.lib.parse.reporting.HtmlReportMapper.toDto
-import dev.vulnlog.lib.parse.reporting.HtmlReportWriter.renderHtmlReport
-import dev.vulnlog.lib.parse.reporting.dto.FilterDataDto
-import dev.vulnlog.lib.parse.validation.ValidVulnlogProject
 import dev.vulnlog.lib.shell.FileInputOption
 import dev.vulnlog.lib.shell.FileOutputOption
 import java.nio.file.Path
@@ -118,7 +118,7 @@ class ImpactReportCommand : CliktCommand(name = "impact") {
                 inputs = inputNames,
                 filter = filterData,
             )
-        val content = renderHtmlReport(reportData)
+        val content = HtmlReportEncoder.encode(reportData)
 
         when (val target = output) {
             is FileOutputOption.File -> {

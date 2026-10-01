@@ -18,12 +18,16 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
+import dev.vulnlog.cli.shell.filter.resolveFilterOrFail
 import dev.vulnlog.cli.shell.validation.validateInputOrFail
+import dev.vulnlog.lib.codec.suppression.SuppressionEncoder
+import dev.vulnlog.lib.codec.suppression.SuppressionFile
 import dev.vulnlog.lib.core.StatusVerb
 import dev.vulnlog.lib.core.SuppressionFilter
 import dev.vulnlog.lib.core.buildSuppressionOutputs
 import dev.vulnlog.lib.core.canonical
 import dev.vulnlog.lib.core.collectSuppressedVulnerabilities
+import dev.vulnlog.lib.core.filter.FilterRequest
 import dev.vulnlog.lib.core.formatHint
 import dev.vulnlog.lib.core.formatMessage
 import dev.vulnlog.lib.core.formatStatus
@@ -32,8 +36,6 @@ import dev.vulnlog.lib.core.renderSuppressionInclusions
 import dev.vulnlog.lib.core.renderSuppressionWritten
 import dev.vulnlog.lib.model.finding.FindingSeverity
 import dev.vulnlog.lib.model.suppress.SuppressionOutput
-import dev.vulnlog.lib.parse.suppression.SuppressionFile
-import dev.vulnlog.lib.parse.suppression.SuppressionWriter.writeSuppressionOutput
 import dev.vulnlog.lib.shell.DirectoryOutputOption
 import dev.vulnlog.lib.shell.FileInputOption
 import dev.vulnlog.lib.shell.FileOutputOption
@@ -84,7 +86,13 @@ class SuppressCommand : CliktCommand(name = "suppress") {
 
         val vulnlogFile = validated.vulnlogProjectFile
         failOnRenamedFilterFlags(renamedFilterOptions)
-        val filter = resolveFilter(filterOptions, vulnlogFile)
+        val request =
+            FilterRequest(
+                reporter = filterOptions.reporterRequest,
+                asOf = filterOptions.asOfRequest,
+                tags = filterOptions.tagsRequest,
+            )
+        val filter = resolveFilterOrFail(request, listOf(vulnlogFile))
 
         val targetReporters =
             vulnlogFile.vulnerabilities
@@ -100,7 +108,7 @@ class SuppressCommand : CliktCommand(name = "suppress") {
         }
         renderSuppressionInclusions(collected.included).forEach { diagnosticSink().debug(it) }
         val contents: List<RenderedSuppression> =
-            suppressionResult.outputs.map { output -> RenderedSuppression(output, writeSuppressionOutput(output)) }
+            suppressionResult.outputs.map { output -> RenderedSuppression(output, SuppressionEncoder.encode(output)) }
 
         if (contents.isEmpty()) {
             echoStatus(formatStatus(StatusVerb.UNCHANGED, "no suppression entries applicable"))
