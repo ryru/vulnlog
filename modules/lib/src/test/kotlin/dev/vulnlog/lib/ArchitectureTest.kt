@@ -30,7 +30,7 @@ private const val LIB = "dev.vulnlog.lib"
 
 /** Packages migrated to the target layout: VEX, and the layers that so far hold VEX only. */
 private val strictPackages =
-    listOf("$LIB.model.vex", "$LIB.core.vex", "$LIB.codec", "$LIB.render", "$LIB.app")
+    listOf("$LIB.model.vex", "$LIB.core.vex", "$LIB.codec", "$LIB.render", "$LIB.app", "$LIB.io")
 
 /** Layer → the dev.vulnlog.lib packages it may import (itself included). */
 private val allowed: Map<String, List<String>> =
@@ -54,7 +54,7 @@ private val externalAllowed: Map<String, List<String>> =
     )
 
 /** Layers whose functions are deterministic: time and ids arrive as data. */
-private val pureLayers = listOf("$LIB.model", "$LIB.finding", "$LIB.core", "$LIB.codec", "$LIB.render")
+private val pureLayers = listOf("$LIB.model", "$LIB.finding", "$LIB.core", "$LIB.codec", "$LIB.render", "$LIB.app")
 
 /** Calls that read the clock, draw randomness, read the environment or touch the file system. */
 private val impureCalls =
@@ -68,6 +68,7 @@ private val impureCalls =
         "System.getenv(",
         "Files.",
         "java.io.File",
+        "kotlin.io.path.",
     )
 
 private data class Source(
