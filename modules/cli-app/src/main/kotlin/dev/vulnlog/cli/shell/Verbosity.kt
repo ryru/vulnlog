@@ -3,7 +3,7 @@
 
 package dev.vulnlog.cli.shell
 
-import dev.vulnlog.lib.shell.DiagnosticLevel
+enum class DiagnosticLevel { VERBOSE, DEBUG }
 
 data class Verbosity(
     val level: Int = 0,

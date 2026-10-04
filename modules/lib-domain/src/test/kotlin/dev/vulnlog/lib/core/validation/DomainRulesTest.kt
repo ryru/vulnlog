@@ -1,0 +1,831 @@
+// Copyright the Vulnlog contributors
+// SPDX-License-Identifier: Apache-2.0
+
+package dev.vulnlog.lib.core.validation
+
+import dev.vulnlog.lib.finding.FindingSeverity
+import dev.vulnlog.lib.finding.Rule
+import dev.vulnlog.lib.finding.ValidationFinding
+import dev.vulnlog.lib.fixtures.cve
+import dev.vulnlog.lib.fixtures.ghsa
+import dev.vulnlog.lib.fixtures.mavenPurlEntry
+import dev.vulnlog.lib.fixtures.release
+import dev.vulnlog.lib.fixtures.releaseEntry
+import dev.vulnlog.lib.fixtures.report
+import dev.vulnlog.lib.fixtures.resolution
+import dev.vulnlog.lib.fixtures.tag
+import dev.vulnlog.lib.fixtures.tagEntry
+import dev.vulnlog.lib.fixtures.vulnerability
+import dev.vulnlog.lib.fixtures.vulnlogFile
+import dev.vulnlog.lib.model.Disposition
+import dev.vulnlog.lib.model.Project
+import dev.vulnlog.lib.model.ReporterType
+import dev.vulnlog.lib.model.Severity
+import dev.vulnlog.lib.model.Verdict
+import dev.vulnlog.lib.model.VulnlogFile
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import java.time.LocalDate
+
+private fun applyV1Rules(file: VulnlogFile): List<ValidationFinding> = v1DomainRules.flatMap { rule -> rule(file) }
+
+class DomainRulesTest :
+    FunSpec({
+
+        test("an empty file breaks no rule") {
+            val file = vulnlogFile()
+
+            val findings = applyV1Rules(file)
+
+            findings.shouldBeEmpty()
+        }
+
+        context("blank project fields") {
+
+            test("filled project fields produce no finding") {
+                val file = vulnlogFile(project = Project("org", "project", "author", "security@example.com"))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.BLANK_PROJECT_FIELD }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a blank or whitespace-only field is an error") {
+                val file = vulnlogFile(project = Project(organization = " ", name = "project", author = ""))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.BLANK_PROJECT_FIELD }
+
+                findings.map { it.path } shouldContainExactly listOf("project.organization", "project.author")
+                findings.first().severity shouldBe FindingSeverity.ERROR
+                findings.first().message shouldBe "Project 'organization' must not be blank."
+            }
+
+            test("a contact is optional but must not be blank when given") {
+                val absent = vulnlogFile(project = Project("org", "project", "author", contact = null))
+                val blank = vulnlogFile(project = Project("org", "project", "author", contact = "  "))
+
+                applyV1Rules(absent).filter { it.rule == Rule.BLANK_PROJECT_FIELD }.shouldBeEmpty()
+                applyV1Rules(blank).filter { it.rule == Rule.BLANK_PROJECT_FIELD }.map { it.path } shouldContainExactly
+                    listOf("project.contact")
+            }
+        }
+
+        context("duplicate release IDs") {
+
+            test("unique release IDs produce no finding") {
+                val file = vulnlogFile(releases = listOf(releaseEntry("v1.0"), releaseEntry("v2.0")))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_RELEASE_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a repeated release ID is an error") {
+                val file = vulnlogFile(releases = listOf(releaseEntry("v1.0"), releaseEntry("v1.0")))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_RELEASE_ID }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.ERROR
+                    path shouldBe "releases[v1.0]"
+                    message shouldBe "Duplicate release ID 'v1.0'."
+                }
+            }
+        }
+
+        context("duplicate tag IDs") {
+
+            test("unique tag IDs produce no finding") {
+                val file = vulnlogFile(tags = listOf(tagEntry("backend"), tagEntry("frontend")))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_TAG_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a repeated tag ID is an error") {
+                val file = vulnlogFile(tags = listOf(tagEntry("backend"), tagEntry("backend")))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_TAG_ID }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.ERROR
+                    path shouldBe "tags[backend]"
+                    message shouldBe "Duplicate tag ID 'backend'."
+                }
+            }
+        }
+
+        context("duplicate vulnerability IDs") {
+
+            test("unique vulnerability IDs produce no finding") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1")), vulnerability(cve("CVE-2021-2"))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_VULNERABILITY_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a repeated vulnerability ID is an error") {
+                val vuln = vulnerability(cve("CVE-2021-1"))
+                val file = vulnlogFile(vulnerabilities = listOf(vuln, vuln))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_VULNERABILITY_ID }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.ERROR
+                    path shouldBe "vulnerabilities[CVE-2021-1]"
+                }
+            }
+
+            test("an alias that is also a primary ID is an error") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2021-1")),
+                                vulnerability(ghsa("GHSA-aaaa-bbbb-cccc"), aliases = listOf(cve("CVE-2021-1"))),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_VULNERABILITY_ID }
+
+                findings
+                    .single()
+                    .path shouldBe "vulnerabilities[GHSA-AAAA-BBBB-CCCC].aliases[CVE-2021-1]"
+            }
+
+            test("an alias that is unique to its vulnerability produces no finding") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(vulnerability(cve("CVE-2021-1"), aliases = listOf(ghsa("GHSA-aaaa-bbbb-cccc")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_VULNERABILITY_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("an alias shared by two vulnerabilities is an error on each of them") {
+                val sharedAlias = ghsa("GHSA-aaaa-bbbb-cccc")
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2021-1"), aliases = listOf(sharedAlias)),
+                                vulnerability(cve("CVE-2021-2"), aliases = listOf(sharedAlias)),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DUPLICATE_VULNERABILITY_ID }
+
+                findings shouldHaveSize 2
+                findings.forEach { it.message shouldContain "CVE-2021-1, CVE-2021-2" }
+            }
+        }
+
+        context("dangling release references") {
+
+            test("a reference to a defined release produces no finding") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("v1.0")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), releases = listOf(release("v1.0")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_RELEASE_REFERENCE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a reference to an undefined release is an error naming the defined ones") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("v1.0"), releaseEntry("v1.1")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), releases = listOf(release("v9.9")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_RELEASE_REFERENCE }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.ERROR
+                    path shouldBe "vulnerabilities[CVE-2021-1].releases"
+                    message shouldContain "v9.9"
+                    message shouldContain "v1.0"
+                    message shouldContain "v1.1"
+                }
+            }
+
+            test("a resolution pointing at an undefined release is an error") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("v1.0")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), resolution = resolution("v2.0"))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_RELEASE_REFERENCE }
+
+                with(findings.single()) {
+                    path shouldBe "vulnerabilities[CVE-2021-1].resolution"
+                    message shouldContain "v2.0"
+                }
+            }
+        }
+
+        context("dangling tag references") {
+
+            test("a defined tag on a vulnerability produces no finding") {
+                val file =
+                    vulnlogFile(
+                        tags = listOf(tagEntry("backend")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), tags = listOf(tag("backend")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_TAG_REFERENCE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("an undefined tag on a vulnerability is an error") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), tags = listOf(tag("unknown")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_TAG_REFERENCE }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.ERROR
+                    path shouldBe "vulnerabilities[CVE-2021-1].tags[unknown]"
+                }
+            }
+
+            test("a defined tag on a release PURL produces no finding") {
+                val file =
+                    vulnlogFile(
+                        tags = listOf(tagEntry("backend")),
+                        releases =
+                            listOf(
+                                releaseEntry(
+                                    "v1.0",
+                                    purls =
+                                        listOf(
+                                            mavenPurlEntry("pkg:maven/acme/widget@1.0", tags = listOf("backend")),
+                                        ),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_TAG_REFERENCE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("an undefined tag on a release PURL is an error") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry(
+                                    "v1.0",
+                                    purls =
+                                        listOf(
+                                            mavenPurlEntry("pkg:maven/acme/widget@1.0", tags = listOf("unknown")),
+                                        ),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.DANGLING_TAG_REFERENCE }
+
+                findings
+                    .single()
+                    .path shouldBe "releases[v1.0].purls[pkg:maven/acme/widget@1.0].tags[unknown]"
+            }
+        }
+
+        context("analyzed date against the earliest report date") {
+
+            test("an analysis after the report produces no finding") {
+                val file = fileAnalyzedAt(LocalDate.of(2021, 6, 1), reportedAt = LocalDate.of(2021, 1, 1))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ANALYZED_BEFORE_REPORTED }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("an analysis on the day of the report produces no finding") {
+                val sameDay = LocalDate.of(2021, 1, 1)
+                val file = fileAnalyzedAt(sameDay, reportedAt = sameDay)
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ANALYZED_BEFORE_REPORTED }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("an analysis before the report is a warning") {
+                val file = fileAnalyzedAt(LocalDate.of(2021, 1, 1), reportedAt = LocalDate.of(2021, 6, 1))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ANALYZED_BEFORE_REPORTED }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.WARNING
+                    path shouldBe "vulnerabilities[CVE-2021-1].analyzed_at"
+                }
+            }
+
+            test("a missing analysis date produces no finding") {
+                val file = fileAnalyzedAt(null, reportedAt = LocalDate.of(2021, 1, 1))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ANALYZED_BEFORE_REPORTED }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a report without a date does not count as the earliest") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2021-1"),
+                                    reports =
+                                        listOf(
+                                            report(ReporterType.GRYPE, at = null),
+                                            report(ReporterType.SNYK, at = LocalDate.of(2021, 6, 1)),
+                                        ),
+                                    analyzedAt = LocalDate.of(2021, 1, 1),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ANALYZED_BEFORE_REPORTED }
+
+                findings shouldHaveSize 1
+            }
+
+            test("reports without any date produce no finding") {
+                val file = fileAnalyzedAt(LocalDate.of(2021, 1, 1), reportedAt = null)
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ANALYZED_BEFORE_REPORTED }
+
+                findings.shouldBeEmpty()
+            }
+        }
+
+        context("reporter information") {
+
+            test("the generic reporter with a source produces no finding") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2021-1"),
+                                    reports = listOf(report(ReporterType.OTHER, source = "https://example.com")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.MISSING_REPORTER_INFORMATION }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("the generic reporter without a source is an error") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(vulnerability(cve("CVE-2021-1"), reports = listOf(report(ReporterType.OTHER)))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.MISSING_REPORTER_INFORMATION }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.ERROR
+                    path shouldBe "vulnerabilities[CVE-2021-1]"
+                }
+            }
+
+            test("a named reporter needs no source") {
+                val file =
+                    vulnlogFile(
+                        vulnerabilities =
+                            listOf(vulnerability(cve("CVE-2021-1"), reports = listOf(report(ReporterType.GRYPE)))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.MISSING_REPORTER_INFORMATION }
+
+                findings.shouldBeEmpty()
+            }
+        }
+
+        context("unreferenced releases") {
+
+            test("a release used by a vulnerability produces no finding") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("v1.0")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), releases = listOf(release("v1.0")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.UNREFERENCED_RELEASE_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a release nothing points at is informational") {
+                val file = vulnlogFile(releases = listOf(releaseEntry("v1.0")))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.UNREFERENCED_RELEASE_ID }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.INFO
+                    path shouldBe "releases[v1.0]"
+                }
+            }
+
+            test("only the unused releases are reported") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("v1.0"), releaseEntry("v2.0")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), releases = listOf(release("v1.0")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.UNREFERENCED_RELEASE_ID }
+
+                findings
+                    .single()
+                    .path shouldBe "releases[v2.0]"
+            }
+        }
+
+        context("unreferenced tags") {
+
+            test("a tag used by a vulnerability produces no finding") {
+                val file =
+                    vulnlogFile(
+                        tags = listOf(tagEntry("backend")),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), tags = listOf(tag("backend")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.UNREFERENCED_TAG_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a tag used by a release PURL produces no finding") {
+                val file =
+                    vulnlogFile(
+                        tags = listOf(tagEntry("backend")),
+                        releases =
+                            listOf(
+                                releaseEntry(
+                                    "v1.0",
+                                    purls =
+                                        listOf(
+                                            mavenPurlEntry("pkg:maven/acme/widget@1.0", tags = listOf("backend")),
+                                        ),
+                                ),
+                            ),
+                        vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), releases = listOf(release("v1.0")))),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.UNREFERENCED_TAG_ID }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a tag nothing points at is informational") {
+                val file = vulnlogFile(tags = listOf(tagEntry("backend")))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.UNREFERENCED_TAG_ID }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.INFO
+                    path shouldBe "tags[backend]"
+                }
+            }
+        }
+
+        context("release declaration order") {
+
+            test("accepts dated releases declared oldest first") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.0.0", publishedAt = LocalDate.of(2026, 1, 15)),
+                                releaseEntry("1.1.0", publishedAt = LocalDate.of(2026, 3, 1)),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASES_OUT_OF_ORDER }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("warns when a newer release is declared before an older one") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.1.0", publishedAt = LocalDate.of(2026, 3, 1)),
+                                releaseEntry("1.0.0", publishedAt = LocalDate.of(2026, 1, 15)),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASES_OUT_OF_ORDER }
+
+                findings shouldHaveSize 1
+                findings.first().severity shouldBe FindingSeverity.WARNING
+                findings.first().path shouldBe "releases[1.0.0]"
+                findings.first().message shouldContain "declared after"
+            }
+
+            test("ignores releases that have not been published yet") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.0.0", publishedAt = LocalDate.of(2026, 1, 15)),
+                                releaseEntry("1.1.0"),
+                                releaseEntry("1.2.0", publishedAt = LocalDate.of(2026, 3, 1)),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0"), release("1.2.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASES_OUT_OF_ORDER }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("reports each release that breaks the order") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("3.0.0", publishedAt = LocalDate.of(2026, 5, 1)),
+                                releaseEntry("1.0.0", publishedAt = LocalDate.of(2026, 1, 15)),
+                                releaseEntry("2.0.0", publishedAt = LocalDate.of(2026, 3, 1)),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("2.0.0"), release("3.0.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASES_OUT_OF_ORDER }
+
+                findings shouldHaveSize 1
+                findings.first().path shouldBe "releases[1.0.0]"
+            }
+        }
+
+        context("accepted critical risk") {
+
+            test("a critical vulnerability marked wont fix is informational") {
+                val file = fileWithVerdict(Verdict.Affected(Severity.CRITICAL, Disposition.WONT_FIX))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ACCEPTED_CRITICAL_RISK }
+
+                with(findings.single()) {
+                    severity shouldBe FindingSeverity.INFO
+                    path shouldBe "vulnerabilities[CVE-2021-1].disposition"
+                }
+            }
+
+            test("a non-critical vulnerability marked wont fix produces no finding") {
+                val file = fileWithVerdict(Verdict.Affected(Severity.HIGH, Disposition.WONT_FIX))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ACCEPTED_CRITICAL_RISK }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("a critical vulnerability that is being fixed produces no finding") {
+                val file = fileWithVerdict(Verdict.Affected(Severity.CRITICAL))
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.ACCEPTED_CRITICAL_RISK }
+
+                findings.shouldBeEmpty()
+            }
+        }
+
+        context("releases without purls") {
+
+            test("a file that declares no purls anywhere produces no finding") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0"), releaseEntry("1.1.0")),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASE_WITHOUT_PURLS }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("warns for each release without purls once another release declares them") {
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.0.0", purls = listOf(mavenPurlEntry("pkg:maven/com.acme/app@1.0.0"))),
+                                releaseEntry("1.1.0"),
+                                releaseEntry("1.2.0"),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    releases = listOf(release("1.0.0"), release("1.1.0"), release("1.2.0")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.RELEASE_WITHOUT_PURLS }
+
+                findings.map { it.path } shouldContainExactly listOf("releases[1.1.0]", "releases[1.2.0]")
+                findings.first().severity shouldBe FindingSeverity.WARNING
+                findings.first().message shouldContain "declares no purls"
+            }
+        }
+
+        context("vulnerabilities without a date") {
+
+            val purls = listOf(mavenPurlEntry("pkg:maven/com.acme/app@1.0.0", tags = listOf("app")))
+            val app = listOf(tag("app"))
+
+            test("a file that declares no purls produces no finding") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0")),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2026-0001"), releases = listOf(release("1.0.0")), tags = app),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("warns for each undated entry once a release declares purls") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0", purls = purls)),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2026-0001"), releases = listOf(release("1.0.0")), tags = app),
+                                vulnerability(
+                                    cve("CVE-2026-0002"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    reports = listOf(report(ReporterType.TRIVY)),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.map { it.path } shouldContainExactly
+                    listOf("vulnerabilities[CVE-2026-0001]", "vulnerabilities[CVE-2026-0002]")
+                findings.first().severity shouldBe FindingSeverity.WARNING
+                findings.first().message shouldBe
+                    "Vulnerability 'CVE-2026-0001' leaves its VEX statement undated on release '1.0.0'. Add either " +
+                    "'analyzed_at', a report 'at' or 'resolution.at', or set 'published_at' on the release."
+            }
+
+            test("an analysis date for a verdict or a dated report is enough") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0", purls = purls)),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    analyzedAt = LocalDate.of(2026, 1, 20),
+                                    verdict = Verdict.Affected(Severity.HIGH),
+                                ),
+                                vulnerability(
+                                    cve("CVE-2026-0002"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    reports = listOf(report(ReporterType.TRIVY, at = LocalDate.of(2026, 1, 20))),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.shouldBeEmpty()
+            }
+
+            test("only releases with purls matching the entry's tags are checked") {
+                val file =
+                    vulnlogFile(
+                        releases = listOf(releaseEntry("1.0.0"), releaseEntry("1.1.0", purls = purls)),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(cve("CVE-2026-0001"), releases = listOf(release("1.0.0")), tags = app),
+                                vulnerability(
+                                    cve("CVE-2026-0002"),
+                                    releases = listOf(release("1.0.0")),
+                                    tags = listOf(tag("build")),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.single().message shouldContain
+                    "'CVE-2026-0001' leaves its VEX statement undated on release '1.1.0'."
+            }
+
+            test("names every release whose statement stays undated, such as an unpublished fix release") {
+                val fixPurls = listOf(mavenPurlEntry("pkg:maven/com.acme/app@1.1.0", tags = listOf("app")))
+                val file =
+                    vulnlogFile(
+                        releases =
+                            listOf(
+                                releaseEntry("1.0.0", purls = purls),
+                                releaseEntry("1.1.0", purls = fixPurls),
+                            ),
+                        vulnerabilities =
+                            listOf(
+                                vulnerability(
+                                    cve("CVE-2026-0001"),
+                                    tags = app,
+                                    releases = listOf(release("1.0.0")),
+                                    analyzedAt = LocalDate.of(2026, 1, 20),
+                                    verdict = Verdict.Affected(Severity.HIGH),
+                                    resolution = resolution(release = "1.1.0"),
+                                ),
+                            ),
+                    )
+
+                val findings = applyV1Rules(file).filter { it.rule == Rule.VULNERABILITY_WITHOUT_DATE }
+
+                findings.single().message shouldContain "undated on release '1.1.0'."
+            }
+        }
+    })
+
+private fun fileAnalyzedAt(
+    analyzedAt: LocalDate?,
+    reportedAt: LocalDate?,
+): VulnlogFile =
+    vulnlogFile(
+        vulnerabilities =
+            listOf(
+                vulnerability(
+                    cve("CVE-2021-1"),
+                    reports = listOf(report(ReporterType.GRYPE, at = reportedAt)),
+                    analyzedAt = analyzedAt,
+                ),
+            ),
+    )
+
+private fun fileWithVerdict(verdict: Verdict): VulnlogFile =
+    vulnlogFile(vulnerabilities = listOf(vulnerability(cve("CVE-2021-1"), verdict = verdict)))

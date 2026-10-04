@@ -5,7 +5,6 @@ package dev.vulnlog.cli.shell
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.Context
-import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.ArgumentTransformContext
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
@@ -22,23 +21,20 @@ import dev.vulnlog.lib.app.OpenVexOutcome
 import dev.vulnlog.lib.app.OpenVexRequest
 import dev.vulnlog.lib.app.generateOpenVex
 import dev.vulnlog.lib.codec.openvex.openVexDocumentId
-import dev.vulnlog.lib.core.StatusVerb
-import dev.vulnlog.lib.core.formatMessage
-import dev.vulnlog.lib.core.formatStatus
+import dev.vulnlog.lib.io.FileInputOption
+import dev.vulnlog.lib.io.FileOutputOption
 import dev.vulnlog.lib.io.readOpenVexBaseline
-import dev.vulnlog.lib.model.finding.FindingSeverity
+import dev.vulnlog.lib.io.writeOutput
 import dev.vulnlog.lib.model.vex.openvex.OpenVexBaselineRead
 import dev.vulnlog.lib.model.vex.openvex.OpenVexFormatVersion
 import dev.vulnlog.lib.model.vex.openvex.OpenVexTooling
-import dev.vulnlog.lib.render.Failure
-import dev.vulnlog.lib.render.OpenVexLine
-import dev.vulnlog.lib.render.formatFailureLines
+import dev.vulnlog.lib.render.Message
+import dev.vulnlog.lib.render.StatusVerb
+import dev.vulnlog.lib.render.formatStatus
 import dev.vulnlog.lib.render.renderOpenVexBaselineFailure
 import dev.vulnlog.lib.render.renderOpenVexFailure
-import dev.vulnlog.lib.render.renderOpenVexReport
+import dev.vulnlog.lib.render.renderOpenVexMessages
 import dev.vulnlog.lib.render.renderOpenVexWritten
-import dev.vulnlog.lib.shell.FileInputOption
-import dev.vulnlog.lib.shell.FileOutputOption
 import java.nio.file.Path
 import java.time.Instant
 import java.util.UUID
@@ -116,7 +112,7 @@ class OpenVexCommand : CliktCommand(name = "openvex") {
     private val formatVersion: OpenVexFormatVersion = OpenVexFormatVersion.LATEST
 
     override fun run() {
-        val vulnlogFile = validateInputOrFail(input).project.vulnlogProjectFile
+        val project = validateInputOrFail(input).project
         val request =
             OpenVexRequest(
                 release = releaseRequest,
@@ -128,47 +124,33 @@ class OpenVexCommand : CliktCommand(name = "openvex") {
                 formatVersion = formatVersion,
             )
 
-        val outcome = generateOpenVex(vulnlogFile, request)
-        renderOpenVexReport(outcome).forEach(::echoLine)
+        val outcome = generateOpenVex(project, request)
+        renderOpenVexMessages(outcome).forEach(::echoMessage)
         when (outcome) {
             is OpenVexOutcome.Failed -> {
                 val baseline = baselineRequest?.toString().orEmpty()
-                fail(renderOpenVexFailure(outcome, baseline, BASELINE_OPTION), exitCode(outcome))
+                failWith(renderOpenVexFailure(outcome, baseline, BASELINE_OPTION), exitCode(outcome))
             }
 
             is OpenVexOutcome.Generated -> write(outcome)
         }
     }
 
-    private fun fail(
-        failures: List<Failure>,
-        code: ExitCode,
-    ): Nothing {
-        formatFailureLines(failures).forEach(::echoMessage)
-        throw ProgramResult(code.code)
-    }
-
-    private fun echoLine(line: OpenVexLine) =
-        when (line) {
-            is OpenVexLine.Warning -> echoMessage(formatMessage(FindingSeverity.WARNING, line.text))
-            is OpenVexLine.Verbose -> diagnosticSink().verbose(line.text)
-            is OpenVexLine.Debug -> diagnosticSink().debug(line.text)
-        }
-
     private fun write(outcome: OpenVexOutcome.Generated) {
         when (val target = output) {
             is FileOutputOption.File -> {
                 if (outcome is OpenVexOutcome.Unchanged && isBaselinePath(target.path)) {
-                    echoStatus(formatStatus(StatusVerb.UNCHANGED, target.path.toString()))
+                    echoMessage(Message.Status(formatStatus(StatusVerb.UNCHANGED, target.path.toString())))
                     return
                 }
-                writeReport({ echoStatus(it) }, { echoMessage(it) }, target, outcome.content)
-                diagnosticSink().verbose(renderOpenVexWritten(target.path.toString(), outcome))
+                writeOrFail(writeOutput(target.path, outcome.content))
+                echoMessage(Message.Status(formatStatus(StatusVerb.WROTE, target.path.toString())))
+                echoMessage(renderOpenVexWritten(target.path.toString(), outcome))
             }
 
             FileOutputOption.Stdout -> {
                 echo(outcome.content, trailingNewline = false)
-                diagnosticSink().verbose(renderOpenVexWritten("<stdout>", outcome))
+                echoMessage(renderOpenVexWritten("<stdout>", outcome))
             }
         }
     }
@@ -181,6 +163,6 @@ class OpenVexCommand : CliktCommand(name = "openvex") {
         when (val read = readOpenVexBaseline(path)) {
             is OpenVexBaselineRead.Present -> read.text
             is OpenVexBaselineRead.Unavailable ->
-                fail(listOf(renderOpenVexBaselineFailure(read, path.toString(), BASELINE_OPTION)), exitCode(read))
+                failWith(listOf(renderOpenVexBaselineFailure(read, path.toString(), BASELINE_OPTION)), exitCode(read))
         }
 }

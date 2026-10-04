@@ -224,24 +224,8 @@ class FormatTest :
         }
 
         test("keeps the deprecated risk acceptable verdict as written") {
-            val outcome = formatYamlOutcome(parsed(CANONICAL_LEGACY_VERDICT_YAML))
+            val result = formatYaml(parsed(CANONICAL_LEGACY_VERDICT_YAML))
 
-            outcome shouldBe FormatOutcome.Unchanged
-        }
-
-        test("formatYamlOutcome tells canonical content from content it reformats") {
-            val canonical = formatYaml(parsed(COLUMN0_YAML))
-
-            val outcomes = listOf(canonical, COLUMN0_YAML).map { formatYamlOutcome(parsed(it)) }
-
-            outcomes shouldBe listOf(FormatOutcome.Unchanged, FormatOutcome.Reformatted(canonical))
-        }
-
-        test("the comments-dropped warning names the file and the fields to use instead") {
-            val warning = formatCommentsDroppedWarning("web-app.vl.yaml")
-
-            warning shouldBe
-                "warning: web-app.vl.yaml: contains YAML comments; they are removed on write\n" +
-                "  hint: record notes in schema fields (e.g. comment, analysis)"
+            result shouldBe CANONICAL_LEGACY_VERDICT_YAML
         }
     })

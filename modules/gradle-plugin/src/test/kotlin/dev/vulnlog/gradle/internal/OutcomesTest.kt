@@ -3,8 +3,21 @@
 
 package dev.vulnlog.gradle.internal
 
+import dev.vulnlog.lib.app.ChangelogOutcome
+import dev.vulnlog.lib.app.CopyOutcome
 import dev.vulnlog.lib.app.FilterRejected
+import dev.vulnlog.lib.app.FormatOutcome
+import dev.vulnlog.lib.app.ImpactReportOutcome
+import dev.vulnlog.lib.app.InitOutcome
 import dev.vulnlog.lib.app.OpenVexOutcome
+import dev.vulnlog.lib.app.ProjectsDiffer
+import dev.vulnlog.lib.app.SuppressionOutcome
+import dev.vulnlog.lib.core.filter.FilterProblem
+import dev.vulnlog.lib.document.InputDocument
+import dev.vulnlog.lib.document.InputRead
+import dev.vulnlog.lib.model.OutputWrite
+import dev.vulnlog.lib.model.Project
+import dev.vulnlog.lib.model.VulnId
 import dev.vulnlog.lib.model.vex.openvex.OpenVexBaselineProblem
 import dev.vulnlog.lib.model.vex.openvex.OpenVexBaselineRead
 import dev.vulnlog.lib.model.vex.openvex.OpenVexCollection
@@ -13,6 +26,8 @@ import dev.vulnlog.lib.model.vex.openvex.OpenVexScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldStartWith
+import org.gradle.api.GradleException
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.tasks.VerificationException
 
@@ -34,11 +49,93 @@ class OutcomesTest :
                 listOf(InvalidUserDataException::class, InvalidUserDataException::class, VerificationException::class)
         }
 
+        test("a rejected suppression filter is still a plain GradleException, worded in sentences") {
+            val failed: SuppressionOutcome.Failed = FilterRejected(listOf(FilterProblem.UnknownReporter("bogus")))
+
+            val exception = failure(failed)
+
+            exception::class shouldBe GradleException::class
+            exception.message shouldStartWith "Invalid reporter: bogus. Supported reporters: "
+        }
+
+        test("differing projects are still a plain GradleException in both reports, worded in sentences") {
+            val differ = ProjectsDiffer(listOf(Project("Acme", "App", "Team"), Project("Other", "App", "Team")))
+            val impact: ImpactReportOutcome.Failed = differ
+            val changelog: ChangelogOutcome.Failed = differ
+
+            val exceptions = listOf(failure(impact), failure(changelog))
+
+            exceptions.map { it::class } shouldContainExactly List(2) { GradleException::class }
+            exceptions.map { it.message }.distinct() shouldContainExactly
+                listOf(
+                    "All input files must share the same project metadata, found 2 different ones. " +
+                        "Give every input the same project block, or report each project on its own.",
+                )
+        }
+
+        test("files that are not formatted are still a plain GradleException naming them and the task to run") {
+            val documents = listOf("a.vl.yaml", "b.vl.yaml").map { name -> InputDocument("---\n", name) }
+            val notCanonical = documents.map { document -> FormatOutcome.NotCanonical(document, emptyList()) }
+
+            val exception = failure(notCanonical)
+
+            exception::class shouldBe GradleException::class
+            exception.message shouldBe
+                "Some Vulnlog files are not formatted: a.vl.yaml, b.vl.yaml. Run the vulnlogFormat task to fix them."
+        }
+
+        test("ids the copy source lacks are still a plain GradleException, worded in sentences") {
+            val source = InputDocument("---\n", "source.vl.yaml")
+            val failed = CopyOutcome.IdsNotInSource(source, listOf(VulnId.Cve("CVE-2026-0000")))
+
+            val exception = failure(failed)
+
+            exception::class shouldBe GradleException::class
+            exception.message shouldBe
+                "Vulnerability IDs not found in source.vl.yaml: CVE-2026-0000. Copy only IDs the source file records."
+        }
+
+        test("an init target that exists is still a plain GradleException, worded in sentences") {
+            val exception = failure(InitOutcome.AlreadyExists, "vulnlog.yaml")
+
+            exception::class shouldBe GradleException::class
+            exception.message shouldBe "The file vulnlog.yaml already exists. Pass --force to replace it."
+        }
+
         test("an unreadable baseline is configuration to fix") {
             val unreadable = OpenVexBaselineRead.Unreadable("Is a directory")
 
             val exception = failure(unreadable, "vex.json")
 
             exception::class shouldBe InvalidUserDataException::class
+        }
+
+        test("an input that cannot be read is configuration to fix, worded in sentences") {
+            val failed =
+                listOf(
+                    InputRead.Missing("a.vl.yaml"),
+                    InputRead.Denied("a.vl.yaml"),
+                    InputRead.Unreadable("a.vl.yaml", "Is a directory"),
+                )
+
+            val exceptions = failed.map(::failure)
+
+            exceptions.map { it::class } shouldContainExactly List(3) { InvalidUserDataException::class }
+            exceptions.first().message shouldBe "Cannot read a.vl.yaml: it does not exist. Check the path."
+        }
+
+        test("an output that cannot be written is configuration to fix, worded in sentences") {
+            val failed =
+                listOf(
+                    OutputWrite.MissingDirectory("out/report.html"),
+                    OutputWrite.Denied("out/report.html"),
+                    OutputWrite.Unwritable("out/report.html", "Is a directory"),
+                )
+
+            val exceptions = failed.map(::failure)
+
+            exceptions.map { it::class } shouldContainExactly List(3) { InvalidUserDataException::class }
+            exceptions[1].message shouldBe
+                "Cannot write out/report.html: permission denied. Make the location writable for this user."
         }
     })

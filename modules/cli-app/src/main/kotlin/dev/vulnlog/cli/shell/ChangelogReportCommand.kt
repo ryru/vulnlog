@@ -12,25 +12,22 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
-import dev.vulnlog.cli.shell.filter.resolveFilterOrFail
-import dev.vulnlog.cli.shell.reporting.sharedProjectOrFail
 import dev.vulnlog.cli.shell.validation.validateInputOrFail
+import dev.vulnlog.lib.app.ChangelogFormatRequest
+import dev.vulnlog.lib.app.ChangelogOutcome
+import dev.vulnlog.lib.app.ChangelogRequest
+import dev.vulnlog.lib.app.generateChangelog
 import dev.vulnlog.lib.core.filter.FilterRequest
-import dev.vulnlog.lib.core.filter.applyFilter
-import dev.vulnlog.lib.core.formatMessage
-import dev.vulnlog.lib.core.reporting.collectChangelogReleases
-import dev.vulnlog.lib.core.reporting.formatChangelogMarkdown
-import dev.vulnlog.lib.core.reporting.formatChangelogText
-import dev.vulnlog.lib.document.validation.ValidVulnlogProject
-import dev.vulnlog.lib.model.Project
-import dev.vulnlog.lib.model.VulnlogFile
-import dev.vulnlog.lib.model.finding.FindingSeverity
+import dev.vulnlog.lib.io.FileInputOption
+import dev.vulnlog.lib.io.FileOutputOption
+import dev.vulnlog.lib.io.writeOutput
 import dev.vulnlog.lib.model.reporting.ChangelogDetail
-import dev.vulnlog.lib.model.reporting.ReportingChangelogProject
-import dev.vulnlog.lib.model.reporting.ReportingChangelogRelease
-import dev.vulnlog.lib.shell.ChangelogFormatRequest
-import dev.vulnlog.lib.shell.FileInputOption
-import dev.vulnlog.lib.shell.FileOutputOption
+import dev.vulnlog.lib.render.Message
+import dev.vulnlog.lib.render.StatusVerb
+import dev.vulnlog.lib.render.formatStatus
+import dev.vulnlog.lib.render.renderChangelogFailure
+import dev.vulnlog.lib.render.renderChangelogMessages
+import dev.vulnlog.lib.render.renderWritten
 
 class ChangelogReportCommand : CliktCommand(name = "changelog") {
     override fun help(context: Context): String =
@@ -91,44 +88,35 @@ class ChangelogReportCommand : CliktCommand(name = "changelog") {
     val filterOptions by FilterOptions()
 
     override fun run() {
-        val validated: List<ValidVulnlogProject> = inputs.map { input -> validateInputOrFail(input).project }
-        val files: List<VulnlogFile> = validated.map(ValidVulnlogProject::vulnlogProjectFile)
-        val project: Project = sharedProjectOrFail(files)
-
+        val projects = inputs.map { input -> validateInputOrFail(input).project }
         val request =
-            FilterRequest(
-                reporter = filterOptions.reporterRequest,
-                asOf = filterOptions.asOfRequest,
-                tags = filterOptions.tagsRequest,
-                fixedIn = fixedIn,
+            ChangelogRequest(
+                filter =
+                    FilterRequest(
+                        reporter = filterOptions.reporterRequest,
+                        asOf = filterOptions.asOfRequest,
+                        tags = filterOptions.tagsRequest,
+                        fixedIn = fixedIn,
+                    ),
+                format = format,
+                detail = if (brief) ChangelogDetail.BRIEF else ChangelogDetail.FULL,
             )
-        val filter = resolveFilterOrFail(request, files)
 
-        val releases: List<ReportingChangelogRelease> = collectChangelogReleases(files.map { it.applyFilter(filter) })
-        diagnosticSink().debug("collected ${releases.sumOf { it.entries.size }} fixes in ${releases.size} releases")
-
-        if (releases.isEmpty()) {
-            echoStatus(formatMessage(FindingSeverity.INFO, "no fixed vulnerabilities to report"))
-            return
+        val outcome = generateChangelog(projects, request)
+        renderChangelogMessages(outcome).forEach(::echoMessage)
+        when (outcome) {
+            is ChangelogOutcome.Failed -> failWith(renderChangelogFailure(outcome), exitCode(outcome))
+            is ChangelogOutcome.NothingFixed -> Unit
+            is ChangelogOutcome.Fixed -> write(outcome.content)
         }
+    }
 
-        val detail = if (brief) ChangelogDetail.BRIEF else ChangelogDetail.FULL
-        val changelog = ReportingChangelogProject(project, releases)
-        val content =
-            when (format) {
-                is ChangelogFormatRequest.Text -> formatChangelogText(changelog, detail)
-                is ChangelogFormatRequest.Markdown -> formatChangelogMarkdown(changelog, detail)
-            }
-
+    private fun write(content: String) {
         when (val target = output) {
             is FileOutputOption.File -> {
-                writeReport(
-                    { echoStatus(it) },
-                    { echoMessage(it) },
-                    target,
-                    content,
-                )
-                diagnosticSink().verbose("wrote ${target.path}")
+                writeOrFail(writeOutput(target.path, content))
+                echoMessage(Message.Status(formatStatus(StatusVerb.WROTE, target.path.toString())))
+                echoMessage(renderWritten(target.path.toString()))
             }
 
             is FileOutputOption.Stdout -> echo(content)

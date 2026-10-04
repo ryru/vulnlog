@@ -3,11 +3,7 @@
 
 package dev.vulnlog.lib.document
 
-import dev.vulnlog.lib.core.StatusVerb
-import dev.vulnlog.lib.core.formatMessage
-import dev.vulnlog.lib.core.formatStatus
 import dev.vulnlog.lib.core.parseVulnId
-import dev.vulnlog.lib.core.pluralize
 import dev.vulnlog.lib.document.dto.VulnerabilityEntryDto
 import dev.vulnlog.lib.document.dto.VulnlogFileV1Dto
 import dev.vulnlog.lib.document.mapper.DtoV1Mapper
@@ -20,24 +16,17 @@ import dev.vulnlog.lib.model.ReporterType
 import dev.vulnlog.lib.model.VulnId
 import dev.vulnlog.lib.model.VulnerabilityEntry
 import dev.vulnlog.lib.model.VulnlogFile
-import dev.vulnlog.lib.model.finding.FindingSeverity
-import java.nio.file.Path
-
-data class CopyOutcome(
-    val copied: List<VulnId>,
-    val newContent: String,
-)
 
 /**
  * Rewrites the whole document canonically, as [addVulnerabilityToFile] does. An entry the destination already has
  * keeps its place and its own values and only gains what it lacks, so a copy never overwrites the destination's
  * analysis. Every copied entry points at the destination's last release; the source's releases mean nothing there.
  */
-fun copyVulnerabilities(
+fun copyVulnerabilitiesToFile(
     source: VulnlogFile,
     destination: ValidVulnlogProject,
     vulnIds: Set<VulnId>,
-): CopyOutcome {
+): String {
     val destinationFile = destination.vulnlogProjectFile
     val release =
         destinationFile.releases
@@ -56,13 +45,9 @@ fun copyVulnerabilities(
                 }
         }
 
-    return CopyOutcome(
-        copied = sourceEntries.map { it.id },
-        newContent =
-            YamlWriter.renderCanonicalDocument(
-                newDto,
-                includeSchemaHeader = hasSchemaHeader(destination.nodeTree.rootNode),
-            ),
+    return YamlWriter.renderCanonicalDocument(
+        newDto,
+        includeSchemaHeader = hasSchemaHeader(destination.nodeTree.rootNode),
     )
 }
 
@@ -129,24 +114,3 @@ private fun mergeReports(
     }
     return byReporter.values.toList()
 }
-
-fun formatVulnIdsNotInSourceMessage(missing: Set<VulnId>): String =
-    formatMessage(
-        FindingSeverity.ERROR,
-        "vulnerability IDs not found in source file: ${missing.joinToString(", ") { it.id }}",
-    )
-
-fun formatCopiedMessage(
-    destinationPath: Path,
-    ids: List<VulnId>,
-): String =
-    if (ids.isEmpty()) {
-        formatStatus(StatusVerb.UNCHANGED, "$destinationPath: no new vulnerabilities")
-    } else {
-        formatStatus(StatusVerb.COPIED, "${pluralize(ids.size, "entry", "entries")} to $destinationPath")
-    }
-
-fun findNonExistingVulnIds(
-    vulnerabilities: List<VulnerabilityEntry>,
-    vulnIds: Set<VulnId>,
-): Set<VulnId> = vulnIds - vulnerabilities.map { it.id }.toSet()

@@ -8,28 +8,23 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import java.io.File
 
 /**
- * Enforces the package layers of the target architecture by scanning the imports of lib's main sources, and keeps the
- * pure layers free of the clock, randomness, the environment and the file system. No extra dependency.
- *
- * Packages in [strictPackages] already follow the rules and fail the build on a violation. Every other package is only
- * reported while the migration is in progress. A package that no layer names yet, such as `shell`, is not checked.
+ * Enforces the package layers by scanning the imports and the fully qualified references of the main sources of lib and
+ * lib-domain, and keeps the pure layers free of the clock, randomness, the environment and the file system. No extra
+ * dependency. The module boundary already keeps the domain from the outer layers; the rules inside each module stay
+ * this test's job.
  */
 class ArchitectureTest :
     FunSpec({
-        test("lib packages only import the layers they may use") {
-            check(sources(), ::layerViolations)
+        test("every lib package belongs to a layer and reaches only the layers it may use") {
+            sources().flatMap(::layerViolations).shouldBeEmpty()
         }
 
         test("pure layers reach no clock, randomness, environment or file system") {
-            check(sources(), ::impurityViolations)
+            sources().flatMap(::impurityViolations).shouldBeEmpty()
         }
     })
 
 private const val LIB = "dev.vulnlog.lib"
-
-/** Packages migrated to the target layout: VEX, and the layers that so far hold VEX only. */
-private val strictPackages =
-    listOf("$LIB.model.vex", "$LIB.core.vex", "$LIB.codec", "$LIB.render", "$LIB.app", "$LIB.io")
 
 /** Layer → the dev.vulnlog.lib packages it may import (itself included). */
 private val allowed: Map<String, List<String>> =
@@ -55,7 +50,6 @@ private val externalAllowed: Map<String, List<String>> =
 /** Layers whose functions are deterministic: time and ids arrive as data. */
 private val pureLayers = listOf("$LIB.model", "$LIB.finding", "$LIB.core", "$LIB.codec", "$LIB.render", "$LIB.app")
 
-/** Calls that read the clock, draw randomness, read the environment or touch the file system. */
 private val impureCalls =
     listOf(
         "UUID.randomUUID(",
@@ -76,10 +70,13 @@ private data class Source(
     val code: String,
 )
 
+/** A missing root would yield no file and pass silently, so both must exist. */
+private val sourceRoots = listOf(File("src/main/kotlin"), File("../lib-domain/src/main/kotlin"))
+
 private fun sources(): List<Source> =
-    File("src/main/kotlin")
-        .walkTopDown()
-        .filter { it.extension == "kt" }
+    sourceRoots
+        .onEach { root -> check(root.isDirectory) { "Source root not found: $root" } }
+        .flatMap { root -> root.walkTopDown().filter { it.extension == "kt" }.toList() }
         .map { file ->
             val text = file.readText()
             val pkg =
@@ -89,15 +86,26 @@ private fun sources(): List<Source> =
                     ?.get(1)
                     .orEmpty()
             Source(file.name, pkg, withoutComments(text))
-        }.toList()
+        }
 
+private val importLine = Regex("^import (\\S+)", RegexOption.MULTILINE)
+
+/** A name written out in the code, such as `dev.vulnlog.lib.render.Message.Status(...)`, needs no import. */
+private val qualifiedLibName = Regex("""\bdev\.vulnlog\.lib(?:\.\w+)+""")
+
+/** A package outside every layer would escape both rules. */
 private fun layerViolations(source: Source): List<String> {
-    val layer = layerOf(source.pkg) ?: return emptyList()
-    return Regex("^import (\\S+)", RegexOption.MULTILINE)
-        .findAll(source.code)
-        .map { it.groupValues[1] }
-        .filterNot { import -> isAllowed(layer, import) }
-        .map { import -> "${source.name}: ${source.pkg} imports $import" }
+    val layer = layerOf(source.pkg) ?: return listOf("${source.name}: ${source.pkg} belongs to no layer")
+    val body =
+        source.code
+            .lineSequence()
+            .filterNot { line -> line.startsWith("package ") || line.startsWith("import ") }
+            .joinToString("\n")
+    val imports = importLine.findAll(source.code).map { "imports" to it.groupValues[1] }
+    val references = qualifiedLibName.findAll(body).map { "references" to it.value }
+    return (imports + references)
+        .filterNot { (_, name) -> isAllowed(layer, name) }
+        .map { (how, name) -> "${source.name}: ${source.pkg} $how $name" }
         .toList()
 }
 
@@ -113,12 +121,12 @@ private fun layerOf(pkg: String): String? = allowed.keys.firstOrNull { isWithin(
 
 private fun isAllowed(
     layer: String,
-    import: String,
+    name: String,
 ): Boolean =
-    if (import.startsWith("$LIB.")) {
-        allowed.getValue(layer).any { import.startsWith("$it.") }
+    if (name.startsWith("$LIB.")) {
+        allowed.getValue(layer).any { name.startsWith("$it.") }
     } else {
-        externalAllowed[layer]?.any { import.startsWith(it) } ?: true
+        externalAllowed[layer]?.any { name.startsWith(it) } ?: true
     }
 
 /** The code without its comments, so a KDoc that names a forbidden call does not count as one. */
@@ -126,16 +134,6 @@ private fun withoutComments(text: String): String =
     text
         .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "")
         .replace(Regex("//[^\\n]*"), "")
-
-/** Fails on a violation in a strict package and prints the others. */
-private fun check(
-    sources: List<Source>,
-    violationsOf: (Source) -> List<String>,
-) {
-    val (strict, reported) = sources.partition { source -> strictPackages.any { isWithin(source.pkg, it) } }
-    reported.flatMap(violationsOf).forEach(::println)
-    strict.flatMap(violationsOf).shouldBeEmpty()
-}
 
 private fun isWithin(
     pkg: String,

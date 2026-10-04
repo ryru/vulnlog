@@ -15,8 +15,8 @@ import dev.vulnlog.lib.document.yaml.lineOf
 import dev.vulnlog.lib.document.yaml.mappingKeys
 import dev.vulnlog.lib.document.yaml.scalarValueOf
 import dev.vulnlog.lib.document.yaml.walkValues
-import dev.vulnlog.lib.model.finding.FormatFinding
-import dev.vulnlog.lib.model.finding.FormatRule
+import dev.vulnlog.lib.finding.FormatFinding
+import dev.vulnlog.lib.finding.FormatRule
 import org.snakeyaml.engine.v2.common.FlowStyle
 import org.snakeyaml.engine.v2.common.ScalarStyle
 import org.snakeyaml.engine.v2.nodes.MappingNode
@@ -40,12 +40,6 @@ fun checkFormat(parsedVulnlogProject: ParsedVulnlogProject): List<FormatFinding>
             is VulnlogFileV1Dto -> v1FormatRules.flatMap { rule -> rule(context) }
         }
     return findings.ifEmpty { layoutCatchAll(parsedVulnlogProject) }
-}
-
-fun renderFormatFinding(finding: FormatFinding): String {
-    val ruleName = finding.rule.name
-    val id = ruleName.lowercase().replace('_', '-')
-    return if (finding.path.isEmpty()) "[$id] ${finding.message}" else "[$id] ${finding.path}: ${finding.message}"
 }
 
 private data class FormatCheckContext(

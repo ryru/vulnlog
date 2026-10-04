@@ -3,14 +3,14 @@
 
 package dev.vulnlog.gradle.validation
 
-import dev.vulnlog.lib.core.validation.ValidationConfig
-import dev.vulnlog.lib.core.validation.ValidationOutcome
+import dev.vulnlog.lib.app.ValidationConfig
+import dev.vulnlog.lib.app.ValidationOutcome
+import dev.vulnlog.lib.app.ValidationRequest
 import dev.vulnlog.lib.document.validation.ParsedVulnlogProject
 import dev.vulnlog.lib.document.validation.ValidVulnlogProject
+import dev.vulnlog.lib.finding.Rule
 import dev.vulnlog.lib.fixtures.ValidationDocuments
-import dev.vulnlog.lib.model.finding.Rule
-import dev.vulnlog.lib.shell.FileInputOption
-import dev.vulnlog.lib.shell.ValidationRequest
+import dev.vulnlog.lib.io.FileInputOption
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -71,6 +71,15 @@ class ValidationGradleWrapperTest :
                 val parsed = parse(ValidationDocuments.DANGLING_RELEASE)
 
                 parsed.validatedDto shouldNotBe null
+            }
+
+            test("fails the build on an empty file the same way as on an empty YAML document") {
+                val contents = listOf("  \n", "---\n")
+
+                val failures = contents.map { content -> shouldThrow<GradleException> { parse(content) } }
+
+                failures.map { it::class to it.message } shouldBe
+                    List(2) { GradleException::class to "Vulnlog validation failed." }
             }
 
             test("fails the build on malformed YAML") {

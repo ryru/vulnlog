@@ -3,8 +3,13 @@
 
 package dev.vulnlog.gradle
 
-import dev.vulnlog.lib.core.StatusVerb
-import dev.vulnlog.lib.core.formatStatus
+import dev.vulnlog.gradle.internal.log
+import dev.vulnlog.gradle.internal.writeOrFail
+import dev.vulnlog.lib.io.writeOutputIfChanged
+import dev.vulnlog.lib.model.OutputWrite
+import dev.vulnlog.lib.render.Message
+import dev.vulnlog.lib.render.StatusVerb
+import dev.vulnlog.lib.render.formatStatus
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputFile
@@ -28,13 +33,8 @@ abstract class VulnlogOpenVexUpdateTask : DefaultTask() {
     fun update() {
         val source = generatedFile.get().asFile
         val target = baseline.get().asFile
-        val content = source.readBytes()
-        if (target.isFile && target.readBytes().contentEquals(content)) {
-            logger.lifecycle(formatStatus(StatusVerb.UNCHANGED, target.absolutePath))
-            return
-        }
-        target.parentFile?.mkdirs()
-        target.writeBytes(content)
-        logger.lifecycle(formatStatus(StatusVerb.WROTE, target.absolutePath))
+        val write = writeOrFail(writeOutputIfChanged(target.toPath(), source.readText(), createDirectories = true))
+        val verb = if (write == OutputWrite.Unchanged) StatusVerb.UNCHANGED else StatusVerb.WROTE
+        logger.log(Message.Status(formatStatus(verb, target.absolutePath)))
     }
 }
