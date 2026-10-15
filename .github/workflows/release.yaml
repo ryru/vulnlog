@@ -56,7 +56,7 @@ jobs:
       - name: Set up JVM toolchain
         uses: ./.github/actions/setup-jvm
       - name: Check
-        run: ./gradlew check
+        run: ./gradlew check :buildSrc:check
 
   build-native-images:
     name: Build native image (${{ matrix.artifact-name }})
@@ -83,18 +83,25 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Set up JVM toolchain
         uses: ./.github/actions/setup-jvm
-      - name: Build JVM distribution
-        run: ./gradlew :cli-app:distZip -PappVersion="${{ needs.version.outputs.version }}"
+      - name: Build JVM distribution and SBOMs
+        run: ./gradlew :cli-app:distZip :cli-app:cyclonedxDirectBom :gradle-plugin:cyclonedxDirectBom -PappVersion="${{ needs.version.outputs.version }}"
       - name: Download native images
         uses: actions/download-artifact@v8
         with:
           pattern: vulnlog-*
           path: native-images
+      - name: Download native image SBOM
+        uses: actions/download-artifact@v8
+        with:
+          name: sbom-vulnlog-linux-amd64
+          path: modules/cli-app/build/sbom
       - name: Package native images
         run: |
           for dir in native-images/vulnlog-*/; do
@@ -107,6 +114,26 @@ jobs:
               install/install.sh.template > install-vulnlog.sh
           cp install/uninstall.sh.template uninstall-vulnlog.sh
           chmod +x install-vulnlog.sh uninstall-vulnlog.sh
+      - name: Collect release assets
+        run: |
+          mkdir release-assets
+          cp modules/cli-app/build/distributions/*.zip modules/*/build/sbom/*.cdx.json native-images/*.zip \
+            install-vulnlog.sh uninstall-vulnlog.sh release-assets/
+          cd release-assets && sha256sum -- * > SHA256SUMS
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-checksums: release-assets/SHA256SUMS
+      - name: Attest JVM distribution SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: release-assets/vulnlog-${{ needs.version.outputs.version }}.zip
+          sbom-path: release-assets/vulnlog-${{ needs.version.outputs.version }}.cdx.json
+      - name: Attest native binaries SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: native-images/*.zip
+          sbom-path: release-assets/vulnlog-native-${{ needs.version.outputs.version }}.cdx.json
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
@@ -116,11 +143,7 @@ jobs:
           generate_release_notes: true
           body: |
             Full changelog: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md
-          files: |
-            modules/cli-app/build/distributions/*.zip
-            native-images/*.zip
-            install-vulnlog.sh
-            uninstall-vulnlog.sh
+          files: release-assets/*
 
   publish-docker:
     name: Publish Docker image
@@ -128,7 +151,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      contents: write
       packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -140,14 +167,62 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest == 'true' }}
       - name: Build and push release image
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: modules/cli-app
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}
-            ${{ needs.version.outputs.latest == 'true' && format('ghcr.io/{0}:latest', github.repository) || '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+      - name: Attest image
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-version: ${{ needs.version.outputs.version }}
+          push-to-registry: true
+      - name: Download native image SBOM
+        uses: actions/download-artifact@v8
+        with:
+          name: sbom-vulnlog-linux-amd64
+          path: modules/cli-app/build/sbom
+      - name: Scan image
+        uses: anchore/sbom-action@v0.24.3
+        env:
+          # Otherwise every file of the image becomes a component.
+          SYFT_FILE_METADATA_SELECTION: none
+        with:
+          image: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx-json
+          output-file: modules/cli-app/build/sbom/syft-container.cdx.json
+          upload-artifact: false
+      - name: Set up JVM toolchain
+        uses: ./.github/actions/setup-jvm
+      - name: Build container SBOM
+        run: ./gradlew :cli-app:cyclonedxContainerBom -PappVersion="${{ needs.version.outputs.version }}" -PimageDigest="${{ steps.build.outputs.digest }}"
+      - name: Attest container SBOM
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: modules/cli-app/build/sbom/vulnlog-container-${{ needs.version.outputs.version }}.cdx.json
+          push-to-registry: true
+          # The image attestation above already created the storage record.
+          create-storage-record: false
+      - name: Attach container SBOM
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload --clobber "${{ github.ref_name }}" modules/cli-app/build/sbom/vulnlog-container-*.cdx.json
 
   deploy-website:
     name: Deploy website and docs
@@ -190,11 +265,31 @@ jobs:
       needs.notify-homebrew.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Set up JVM toolchain
         uses: ./.github/actions/setup-jvm
+      # Built before publishing, so the attested jar is the one publishPlugins uploads.
+      - name: Build Gradle plugin
+        run: ./gradlew :gradle-plugin:shadowJar -PappVersion="${{ needs.version.outputs.version }}"
+      - name: Download Gradle plugin SBOM
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "${{ github.ref_name }}" --pattern 'vulnlog-gradle-plugin-*.cdx.json' --dir modules/gradle-plugin/build/sbom
+      - name: Attest Gradle plugin
+        uses: actions/attest@v4
+        with:
+          subject-path: modules/gradle-plugin/build/libs/gradle-plugin-${{ needs.version.outputs.version }}.jar
+      - name: Attest Gradle plugin SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: modules/gradle-plugin/build/libs/gradle-plugin-${{ needs.version.outputs.version }}.jar
+          sbom-path: modules/gradle-plugin/build/sbom/vulnlog-gradle-plugin-${{ needs.version.outputs.version }}.cdx.json
       - name: Publish Gradle plugin
         env:
           GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PLUGIN_KEY }}

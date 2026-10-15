@@ -94,7 +94,15 @@ jobs:
       - name: Set up JVM toolchain
         uses: ./.github/actions/setup-jvm
       - name: Check
-        run: ./gradlew check
+        run: ./gradlew check :buildSrc:check
+      - name: Check VEX documents are up to date
+        run: |
+          ./gradlew updateVexDocuments
+          if [ -n "$(git status --porcelain -- .vex)" ]; then
+            git status --porcelain -- .vex
+            echo "::error::.vex/ does not match vulnlog.yaml. Run './gradlew updateVexDocuments' and commit the result."
+            exit 1
+          fi
 
   native-image:
     needs: [ detect-changes ]

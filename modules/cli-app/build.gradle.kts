@@ -1,8 +1,11 @@
+import org.cyclonedx.model.Component
+
 plugins {
     id("vulnlog.app-convention")
+    id("vulnlog.sbom-convention")
 }
 
-description = "Next generation Vulnlog CLI application"
+description = "Vulnlog command-line interface"
 
 group = "dev.vulnlog"
 
@@ -52,4 +55,17 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+sbom {
+    rootPurl = "pkg:generic/vulnlog"
+    vexDocument = layout.settingsDirectory.file(".vex/vulnlog-cli.openvex.json")
+    containerPurl = "pkg:oci/vulnlog?repository_url=ghcr.io/vulnlog/vulnlog"
+    containerVexDocument = layout.settingsDirectory.file(".vex/vulnlog-container.openvex.json")
+}
+
+tasks.cyclonedxDirectBom {
+    projectType = Component.Type.APPLICATION
+    componentName = "vulnlog"
+    jsonOutput = layout.buildDirectory.file("sbom/vulnlog-$version.cdx.json")
 }

@@ -5,6 +5,7 @@ plugins {
     `java-gradle-plugin`
     id("com.gradle.plugin-publish") version "2.2.1"
     id("com.gradleup.shadow") version "9.6.1"
+    id("vulnlog.sbom-convention")
 }
 
 description = "Vulnlog Gradle plugin"
@@ -110,4 +111,14 @@ gradlePlugin {
             implementationClass = "dev.vulnlog.gradle.VulnlogPlugin"
         }
     }
+}
+
+sbom {
+    rootPurl = "pkg:maven/dev.vulnlog/gradle-plugin"
+    vexDocument = layout.settingsDirectory.file(".vex/vulnlog-gradle-plugin.openvex.json")
+}
+
+tasks.cyclonedxDirectBom {
+    includeConfigs = listOf("runtimeClasspath", "shaded")
+    jsonOutput = layout.buildDirectory.file("sbom/vulnlog-gradle-plugin-$version.cdx.json")
 }
