@@ -11,13 +11,14 @@ import dev.vulnlog.lib.core.suppression.suppressionFileName
 import dev.vulnlog.lib.model.ReporterType
 import dev.vulnlog.lib.model.VulnId
 import dev.vulnlog.lib.model.suppression.SuppressedVulnerability
+import dev.vulnlog.lib.model.suppression.SuppressionEncodingProblem
 import dev.vulnlog.lib.model.suppression.SuppressionExclusion
 import dev.vulnlog.lib.model.suppression.SuppressionFormat
 import kotlin.reflect.KClass
 
 fun renderSuppressionMessages(outcome: SuppressionOutcome): List<Message> =
     when (outcome) {
-        is FilterRejected -> emptyList()
+        is FilterRejected, is SuppressionOutcome.Unencodable -> emptyList()
 
         is SuppressionOutcome.SeveralReporters, is SuppressionOutcome.Generated -> collectedMessages(outcome)
 
@@ -36,6 +37,8 @@ fun renderSuppressionFailure(
     when (failed) {
         is FilterRejected -> renderFilterProblems(failed.problems)
 
+        is SuppressionOutcome.Unencodable -> renderSuppressionEncodingProblems(failed.problems)
+
         is SuppressionOutcome.SeveralReporters -> {
             val names = failed.reporters.map { it.canonical() }.sorted()
             listOf(
@@ -44,6 +47,44 @@ fun renderSuppressionFailure(
                     "use $reporterOption <name> to pick one, or $outputDirOption for one file per reporter",
                 ),
             )
+        }
+    }
+
+fun renderSuppressionEncodingProblems(problems: List<SuppressionEncodingProblem>): List<Failure> =
+    problems.map { problem ->
+        val format =
+            if (problem.format == SuppressionFormat.DependencyCheck) {
+                "Dependency-Check XML"
+            } else {
+                formatName(problem.format)
+            }
+        when (problem) {
+            is SuppressionEncodingProblem.UnencodableReason -> {
+                val character =
+                    "U+" +
+                        problem.codePoint
+                            .toString(16)
+                            .uppercase()
+                            .padStart(4, '0')
+                val limitation =
+                    if (problem.format == SuppressionFormat.DependencyCheck) {
+                        "not allowed in XML 1.0"
+                    } else {
+                        "not supported"
+                    }
+                Failure(
+                    "cannot encode analysis for ${problem.id.canonical()} as $format: " +
+                        "character $character is $limitation",
+                    "replace the character in analysis, or select the generic suppression format",
+                )
+            }
+
+            is SuppressionEncodingProblem.UnencodableExpiry ->
+                Failure(
+                    "cannot encode expiry ${problem.expiresAt} for ${problem.id.canonical()} as $format: " +
+                        "the exclusive cutoff requires a following day",
+                    "choose an earlier expiry, or select the generic suppression format",
+                )
         }
     }
 
@@ -93,6 +134,7 @@ private fun formatName(format: SuppressionFormat): String =
         SuppressionFormat.Trivy -> "trivy"
         SuppressionFormat.Snyk -> "snyk"
         SuppressionFormat.CargoAudit -> "cargo-audit"
+        SuppressionFormat.DependencyCheck -> "dependency-check"
     }
 
 private fun requiredIdTypes(format: SuppressionFormat): String =
