@@ -1,0 +1,46 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-introduction-and-goals]]
+== Introduction
+
+The Vulnlog project helps teams and individuals manage the continuous stream of software vulnerability reports.
+With Vulnlog, they record their analysis of the impact of reported software vulnerabilities in a concise YAML format and generate all relevant artefacts from it: suppression (ignore) files, HTML reports and VEX documents.
+Vulnlog is not a security scanner itself.
+
+This document describes the software architecture of the Vulnlog project.
+
+The Vulnlog project consists of:
+
+Vulnlog YAML:: The YAML format specification describing the Vulnlog data model.
+Vulnlog Application:: The application that reads files following the _Vulnlog YAML_ specification and generates artefacts from them.
+
+include::../Requirements.adoc[]
+
+=== What Vulnlog Is and What It Is Not
+
+- Vulnlog is the single source of truth (SSOT) for software vulnerability analysis.
+- Vulnlog is a ledger of software vulnerability analyses and decisions.
+- Vulnlog helps to communicate the actual impact of software vulnerabilities on software projects.
+- Vulnlog is independent of the tools that report vulnerabilities and of the tools that consume its artefacts.
+- Vulnlog generates artefacts for both humans and machines.
+- Vulnlog is not an SCA scanner.
+
+=== Essential Features
+
+- Generate suppression (ignore) files for SCA scanners.
+- Generate reports that tell humans how vulnerabilities affect a software project.
+- Generate VEX documents for downstream scanners and to complement a Software Bill of Materials (SBOM).
+
+=== Quality Goals
+
+[options="header",cols="1,3"]
+|===
+|Quality Goal
+|Motivation / Description
+
+|Input and output independence
+|Vulnlog keeps the analysis independent of both its inputs and its outputs.
+On the input side, vulnerabilities can be reported by any source: any SCA scanner, a security advisory or a manual report.
+On the output side, the analysis can be consumed by any downstream consumer: SCA scanners, VEX processors, platforms such as OWASP Dependency-Track, or humans reading a report.
+Users can therefore switch scanners or add consumers without losing or repeating any analysis.
+|===

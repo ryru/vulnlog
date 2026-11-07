@@ -1,0 +1,82 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-building-block-view]]
+== Building Block View
+
+=== Whitebox Overall System
+
+image::Vulnlog-Building-Blocks.drawio.svg[alt="Whitebox of Vulnlog showing the cli-app, gradle-plugin, lib and lib-domain building blocks and the files they read and write."]
+
+The building blocks mirror the Gradle modules.
+`cli-app` and `gradle-plugin` are thin entry points.
+Both delegate to `lib`.
+`lib` builds on `lib-domain`.
+
+[options="header",cols="1,3"]
+|===
+|Building Block |Responsibility
+
+|`cli-app`
+|The command-line entry point for engineers.
+
+|`gradle-plugin`
+|The entry point for build tools and CI pipelines.
+
+|`lib`
+|The use cases, file I/O, parsing and the generation of all artefacts.
+
+|`lib-domain`
+|The domain model and the pure domain logic.
+|===
+
+=== Level 2
+
+The project follows a data-oriented programming (DOP) approach.
+
+==== White Box `lib-domain`
+
+[options="header",cols="1,3"]
+|===
+|Package |Responsibility
+
+|`core`
+|Contains pure functions. This code has a focus on clarity and should be free of side effects.
+
+|`model`
+|Contains data classes. These classes have no dependencies outside the module.
+
+|`finding`
+|Contains validation and format findings.
+|===
+
+==== White Box `lib`
+
+[options="header",cols="1,3"]
+|===
+|Package |Responsibility
+
+|`app`
+|Contains the use cases. Both entry points call them.
+
+|`document`
+|Contains the parsing, the DTOs and the mappings. It acts as a bridge between I/O operations and the `core` logic.
+
+|`codec`
+|Contains one generator per output format.
+
+|`io`
+|Reads input files and writes output files.
+
+|`render`
+|Turns results into messages for the CLI and the Gradle plugin.
+|===
+
+==== White Box `cli-app`
+
+[options="header",cols="1,3"]
+|===
+|Package |Responsibility
+
+|`shell`
+|Contains the CLI commands and is responsible for I/O and exit codes.
+|===

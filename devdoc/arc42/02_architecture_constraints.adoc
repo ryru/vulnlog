@@ -1,0 +1,12 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-architecture-constraints]]
+== Architecture Constraints
+
+[options="header",cols="1,2"]
+|===
+|Constraint |Background
+
+|External formats
+|The generated files follow formats defined by others, such as scanner suppression files and VEX. Vulnlog cannot change these formats.
+|===
