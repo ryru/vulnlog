@@ -1,3 +1,5 @@
+# Builds the published site from the release branches. CI uses this playbook.
+# Everything from 'asciidoc:' down is the same in antora-local-playbook.yml. Change both files together.
 site:
   title: Vulnlog Documentation
   url: https://vulnlog.dev/docs
@@ -5,23 +7,52 @@ site:
 
 content:
   sources:
+    # The newest release line. "Edit this Page" opens the file on main, where docs changes start.
+    - url: .
+      branches: release/0.18
+      start_path: docs
+      edit_url: 'https://github.com/vulnlog/vulnlog/edit/main/{path}'
+    # Older release lines. Their page paths differ from main, so they get no edit link.
     - url: .
       branches:
-        - release/0.18
         - release/0.17
         - release/0.16
         - release/0.15
         - release/0.14
       start_path: docs
+      edit_url: false
 
 urls:
   latest_version_segment: latest
   latest_version_segment_strategy: redirect:from
 
+asciidoc:
+  attributes:
+    # Previous and next page links at the bottom of each page, in navigation order.
+    # The @ lets a component turn them off with page-pagination: false.
+    page-pagination: '@'
+    # Readable heading anchors: #check-the-result instead of #_check_the_result.
+    idprefix: ''
+    idseparator: '-'
+  extensions:
+    # Tabbed blocks, written as [tabs]. Their CSS and JavaScript are in docs/supplemental-ui (css/vendor, js/vendor).
+    # After an update of the package, copy both files again from node_modules/@asciidoctor/tabs/dist.
+    - '@asciidoctor/tabs'
+
+antora:
+  extensions:
+    # Full-text search in the browser. The index is a static file written at build time.
+    - require: '@antora/lunr-extension'
+      # Only the latest version is indexed, so results don't repeat for every release line.
+      index_latest_only: true
+    # Reads the latest release, stars, and forks from GitHub once per build for the header.
+    - require: ./docs/extensions/github-facts.js
+
 ui:
   bundle:
-    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
-    snapshot: true
+    # The Antora default UI, committed to this repository, so that a change upstream can't break
+    # docs/supplemental-ui/css/vulnlog-theme.css between two builds. To update it, see docs/ui/README.adoc.
+    url: ./docs/ui/ui-bundle.zip
   supplemental_files: ./docs/supplemental-ui
 
 output:

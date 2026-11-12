@@ -1,13 +1,30 @@
 <link rel="icon" href="{{uiRootPath}}/img/favicon.ico">
-<style>
-.navbar-brand > a.navbar-item:first-child {
-  padding-top: 0;
-  padding-bottom: 0;
-}
-.navbar-brand > a.navbar-item:first-child svg {
-  display: block;
-}
-.navbar-item .icon svg {
-  vertical-align: middle;
-}
-</style>
+<meta name="color-scheme" content="light dark">
+{{!-- Link previews in chat tools and social networks. The description comes from the :description: attribute of the page. --}}
+<meta property="og:site_name" content="{{site.title}}">
+<meta property="og:type" content="article">
+{{#with page.title}}
+<meta property="og:title" content="{{{detag this attribute=true}}}">
+{{/with}}
+{{#with page.description}}
+<meta property="og:description" content="{{{detag this attribute=true}}}">
+{{/with}}
+{{#with page.canonicalUrl}}
+<meta property="og:url" content="{{{this}}}">
+{{/with}}
+<meta property="og:image" content="https://vulnlog.dev/img/vulnlog-overview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="{{{uiRootPath}}}/css/vendor/tabs.css">
+<link rel="stylesheet" href="{{{uiRootPath}}}/css/vulnlog-theme.css">
+<script>
+  // Apply the theme the reader chose before the page renders, so it doesn't flash.
+  // Without a stored choice, the CSS follows the system setting.
+  try {
+    var theme = localStorage.getItem('vulnlog-theme')
+    if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme
+  } catch (e) {}
+</script>
+{{!-- Tabbed blocks of the @asciidoctor/tabs extension. --}}
+<script defer src="{{{uiRootPath}}}/js/vendor/tabs.js"></script>
