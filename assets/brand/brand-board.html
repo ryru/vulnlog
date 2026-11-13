@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vulnlog Brand Board</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=figtree:400,600,700|jetbrains-mono:400,500&display=swap">
+<style>
+/* Layout: one left-aligned column on paper. Paired white and dark panels show every element on both themes at once. */
+:root {
+  --paper: #fafbfc;
+  --mist: #f1f3f5;
+  --line: #d9dee3;
+  --ink: #1f2630;
+  --ink-soft: #59636e;
+  --raspberry: #d32f6a;
+  --on-raspberry: #ffffff;
+  --petrol: #1f8a96;
+  --sans: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #161b22; --mist: #1e242c; --line: #313943; --ink: #e3e8ee; --ink-soft: #9aa5b1; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #161b22; --mist: #1e242c; --line: #313943; --ink: #e3e8ee; --ink-soft: #9aa5b1; color-scheme: dark; }
+body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+.page { max-width: 1040px; margin: 0 auto; padding-block: 64px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 80px; }
+h1 { font-size: clamp(1.9rem, 4.5vw, 2.75rem); line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.375rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+p { margin: 0; max-width: 65ch; }
+.soft { color: var(--ink-soft); }
+.label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+section, header.intro { display: flex; flex-direction: column; gap: 20px; }
+.head { display: flex; flex-direction: column; gap: 8px; }
+svg { display: block; max-width: 100%; height: auto; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* Fixed colours on purpose: these panels show the light and the dark theme side by side, whatever theme the page is in. */
+.panel { border-radius: 6px; border: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; }
+.on-paper { background: #fafbfc; color: #1f2630; --p-soft: #59636e; --p-line: #d9dee3; --p-mist: #f1f3f5; }
+.on-night { background: #161b22; color: #e3e8ee; --p-soft: #9aa5b1; --p-line: #313943; --p-mist: #1e242c; }
+.panel .label, .panel .p-soft { color: var(--p-soft); }
+.stage { padding: clamp(28px, 6vw, 56px); display: flex; flex-direction: column; gap: 16px; }
+.stage .logo { width: 100%; max-width: 360px; }
+.hero .logo { max-width: 520px; }
+
+.idea { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 48px; align-items: center; }
+@media (max-width: 760px) { .idea { grid-template-columns: minmax(0, 1fr); } }
+.keys { font-family: var(--mono); font-size: clamp(1rem, 2.6vw, 1.375rem); line-height: 2; background: var(--mist); border-radius: 6px; padding: 24px 28px; overflow-x: auto; white-space: nowrap; }
+.keys b { color: var(--raspberry); font-weight: 500; }
+.keys span { color: var(--ink-soft); }
+
+.marks { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; padding: 28px; border: 1px solid var(--line); border-radius: 6px; }
+.marks figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 0.75rem; color: var(--ink-soft); font-family: var(--mono); }
+
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+.sw { display: flex; flex-direction: column; gap: 2px; font-size: 0.875rem; min-width: 0; }
+.sw i { display: block; height: 72px; border-radius: 6px; background: var(--c); border: 1px solid var(--line); margin-bottom: 6px; }
+.sw code { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-soft); }
+.sw span { font-size: 0.8125rem; color: var(--ink-soft); }
+.group { display: flex; flex-direction: column; gap: 12px; }
+
+.spec { border: 1px solid var(--line); border-radius: 6px; padding: 28px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.spec .big { font-size: 2rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; text-wrap: balance; }
+.spec .glyphs { font-size: 1.125rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.spec.mono { font-family: var(--mono); }
+.spec.mono .big { font-size: 1.375rem; font-weight: 500; letter-spacing: 0; }
+
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--p-line); flex-wrap: wrap; }
+.nav .logo { width: 116px; }
+.nav nav { display: flex; align-items: center; gap: 18px; font-size: 0.9375rem; font-weight: 600; flex-wrap: wrap; }
+.btn { background: var(--raspberry); color: var(--on-raspberry); padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.9375rem; }
+.hero-copy { padding: 36px 24px 40px; display: flex; flex-direction: column; gap: 12px; }
+.hero-copy .big { font-size: clamp(1.5rem, 3.4vw, 2rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; text-wrap: balance; }
+.hero-copy .cta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.link { color: var(--raspberry); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.report { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 0.875rem; }
+.report .scroll { overflow-x: auto; }
+.report table { border-collapse: collapse; width: 100%; min-width: 360px; }
+.report th { text-align: left; font-weight: 600; color: var(--p-soft); padding: 10px 16px; border-bottom: 1px solid var(--p-line); }
+.report td { padding: 10px 16px; border-bottom: 1px solid var(--p-line); white-space: nowrap; }
+.report td:first-child { border-left: 5px solid var(--stripe); font-family: var(--mono); font-size: 0.8125rem; }
+.report .foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: var(--p-soft); font-size: 0.8125rem; }
+.stickers { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.sticker { border-radius: 999px; padding: 14px 26px; font-family: var(--mono); font-weight: 500; font-size: 1.0625rem; white-space: nowrap; }
+.sticker.a { background: var(--raspberry); color: var(--on-raspberry); }
+.sticker.b { border: 2px solid var(--ink); }
+.sticker.b b, .sticker.c b { color: var(--raspberry); font-weight: 500; }
+.sticker.c { background: var(--mist); }
+
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 48px; }
+@media (max-width: 760px) { .rules { grid-template-columns: minmax(0, 1fr); } }
+.rules ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.rules li { padding: 10px 0; border-top: 1px solid var(--line); }
+.rules li:last-child { border-bottom: 1px solid var(--line); }
+.rules s { color: var(--ink-soft); }
+body { margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="intro">
+    <span class="label">Vulnlog identity</span>
+    <h1>The name is a key. Your file is the value.</h1>
+    <p class="soft">This board shows how the Vulnlog identity looks. The rules and exact values are in <code>devdoc/Brand.adoc</code>, the logo files in <code>assets/brand/</code>.</p>
+  </header>
+
+  <section class="hero">
+    <div class="grid2">
+      <div class="panel on-paper"><div class="stage"><span class="label">On paper</span><svg class="logo" viewBox="-10.11 2 671.11 196.06" role="img" aria-label="Vulnlog"><path fill="#1f2630" fill-rule="evenodd" d="M612 150Q612 166.88 601.43 180.04Q590.87 193.21 574.39 196.86Q557.91 200.52 542.77 193.05Q527.63 185.58 520.5 170.29L518.38 165.75Q517.12 163.04 519.84 161.77L528.9 157.54Q531.62 156.27 532.89 158.99L535 163.52Q539.75 173.72 549.85 178.7Q559.94 183.68 570.93 181.24Q581.91 178.81 588.96 170.03Q596 161.25 596 150L596 135.79Q582.53 148 564 148Q544.12 148 530.06 133.94Q516 119.88 516 100Q516 80.12 530.06 66.06Q544.12 52 564 52Q582.53 52 596 64.21L596 55Q596 52 599 52L609 52Q612 52 612 55ZM496 100Q496 119.88 481.94 133.94Q467.88 148 448 148Q428.12 148 414.06 133.94Q400 119.88 400 100Q400 80.12 414.06 66.06Q428.12 52 448 52Q467.88 52 481.94 66.06Q496 80.12 496 100ZM38.6 145.98L-9.86 5.98Q-10.35 4.56 -9.88 3.61Q-9.42 2.66 -8 2.17Q-7.53 2 -7.02 2L3.56 2Q5.7 2 6.4 4.02L45 115.54L83.6 4.02Q84.3 2 86.44 2L97.02 2Q100.02 2 100.02 5Q100.02 5.5 99.86 5.98L51.4 145.98Q50.7 148 48.56 148L41.44 148Q39.3 148 38.6 145.98ZM267 148L257 148Q254 148 254 145L254 55Q254 52 257 52L267 52Q270 52 270 55L270 59.95Q280.35 52 294 52Q310.57 52 322.28 63.72Q334 75.43 334 92L334 145Q334 148 331 148L321 148Q318 148 318 145L318 92Q318 82.06 310.97 75.03Q303.94 68 294 68Q284.06 68 277.03 75.03Q270 82.06 270 97L270 145Q270 148 267 148ZM118 108Q118 117.94 125.03 124.97Q132.06 132 142 132Q151.94 132 158.97 124.97Q166 117.94 166 108L166 55Q166 52 169 52L179 52Q182 52 182 55L182 145Q182 148 179 148L169 148Q166 148 166 145L166 140.05Q155.65 148 142 148Q125.43 148 113.72 136.28Q102 124.57 102 108L102 55Q102 52 105 52L115 52Q118 52 118 55ZM480 100Q480 86.75 470.63 77.37Q461.25 68 448 68Q434.75 68 425.37 77.37Q416 86.75 416 100Q416 113.25 425.37 122.63Q434.75 132 448 132Q461.25 132 470.63 122.63Q480 113.25 480 100ZM596 100Q596 86.75 586.63 77.37Q577.25 68 564 68Q550.75 68 541.37 77.37Q532 86.75 532 100Q532 113.25 541.37 122.63Q550.75 132 564 132Q577.25 132 586.63 122.63Q596 113.25 596 100ZM223 148L213 148Q210 148 210 145L210 5Q210 2 213 2L223 2Q226 2 226 5L226 145Q226 148 223 148ZM375 148L365 148Q362 148 362 145L362 5Q362 2 365 2L375 2Q378 2 378 5L378 145Q378 148 375 148Z"/><circle cx="650.5" cy="70.5" r="10.5" fill="#d32f6a"/><circle cx="650.5" cy="137.5" r="10.5" fill="#d32f6a"/></svg></div></div>
+      <div class="panel on-night"><div class="stage"><span class="label">On night</span><svg class="logo" viewBox="-10.11 2 671.11 196.06" role="img" aria-label="Vulnlog"><path fill="#e3e8ee" fill-rule="evenodd" d="M612 150Q612 166.88 601.43 180.04Q590.87 193.21 574.39 196.86Q557.91 200.52 542.77 193.05Q527.63 185.58 520.5 170.29L518.38 165.75Q517.12 163.04 519.84 161.77L528.9 157.54Q531.62 156.27 532.89 158.99L535 163.52Q539.75 173.72 549.85 178.7Q559.94 183.68 570.93 181.24Q581.91 178.81 588.96 170.03Q596 161.25 596 150L596 135.79Q582.53 148 564 148Q544.12 148 530.06 133.94Q516 119.88 516 100Q516 80.12 530.06 66.06Q544.12 52 564 52Q582.53 52 596 64.21L596 55Q596 52 599 52L609 52Q612 52 612 55ZM496 100Q496 119.88 481.94 133.94Q467.88 148 448 148Q428.12 148 414.06 133.94Q400 119.88 400 100Q400 80.12 414.06 66.06Q428.12 52 448 52Q467.88 52 481.94 66.06Q496 80.12 496 100ZM38.6 145.98L-9.86 5.98Q-10.35 4.56 -9.88 3.61Q-9.42 2.66 -8 2.17Q-7.53 2 -7.02 2L3.56 2Q5.7 2 6.4 4.02L45 115.54L83.6 4.02Q84.3 2 86.44 2L97.02 2Q100.02 2 100.02 5Q100.02 5.5 99.86 5.98L51.4 145.98Q50.7 148 48.56 148L41.44 148Q39.3 148 38.6 145.98ZM267 148L257 148Q254 148 254 145L254 55Q254 52 257 52L267 52Q270 52 270 55L270 59.95Q280.35 52 294 52Q310.57 52 322.28 63.72Q334 75.43 334 92L334 145Q334 148 331 148L321 148Q318 148 318 145L318 92Q318 82.06 310.97 75.03Q303.94 68 294 68Q284.06 68 277.03 75.03Q270 82.06 270 97L270 145Q270 148 267 148ZM118 108Q118 117.94 125.03 124.97Q132.06 132 142 132Q151.94 132 158.97 124.97Q166 117.94 166 108L166 55Q166 52 169 52L179 52Q182 52 182 55L182 145Q182 148 179 148L169 148Q166 148 166 145L166 140.05Q155.65 148 142 148Q125.43 148 113.72 136.28Q102 124.57 102 108L102 55Q102 52 105 52L115 52Q118 52 118 55ZM480 100Q480 86.75 470.63 77.37Q461.25 68 448 68Q434.75 68 425.37 77.37Q416 86.75 416 100Q416 113.25 425.37 122.63Q434.75 132 448 132Q461.25 132 470.63 122.63Q480 113.25 480 100ZM596 100Q596 86.75 586.63 77.37Q577.25 68 564 68Q550.75 68 541.37 77.37Q532 86.75 532 100Q532 113.25 541.37 122.63Q550.75 132 564 132Q577.25 132 586.63 122.63Q596 113.25 596 100ZM223 148L213 148Q210 148 210 145L210 5Q210 2 213 2L223 2Q226 2 226 5L226 145Q226 148 223 148ZM375 148L365 148Q362 148 362 145L362 5Q362 2 365 2L375 2Q378 2 378 5L378 145Q378 148 375 148Z"/><circle cx="650.5" cy="70.5" r="10.5" fill="#d32f6a"/><circle cx="650.5" cy="137.5" r="10.5" fill="#d32f6a"/></svg></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>The idea</h2>
+    </div>
+    <div class="idea">
+      <p>Vulnlog is a declarative format. You write what is true about a vulnerability, and tools generate the rest. A colon after the name makes that visible: the name becomes a key that waits for your answer. The letters are drawn for Vulnlog from a single line, with flat ends and slightly softened corners. The colon is the only fully round shape and the only colour.</p>
+      <div class="keys" aria-label="The logo read as a key with different values">Vulnlog<b>:</b> <span>not affected</span><br>Vulnlog<b>:</b> <span>fixed in 2.4.1</span><br>Vulnlog<b>:</b> <span>under investigation</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>The mark</h2>
+      <p class="soft">Where the full name does not fit, the V and the colon stand on a raspberry tile. It is drawn a little bolder so it holds at 16 pixels.</p>
+    </div>
+    <div class="marks">
+      <figure><svg width="128" height="128" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><rect width="200" height="200" rx="44" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>128</figure>
+      <figure><svg width="64" height="64" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><rect width="200" height="200" rx="44" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>64</figure>
+      <figure><svg width="32" height="32" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><rect width="200" height="200" rx="44" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>32</figure>
+      <figure><svg width="16" height="16" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><rect width="200" height="200" rx="44" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>16</figure>
+      <figure><svg width="96" height="96" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><circle cx="100" cy="100" r="100" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>avatar</figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Colour</h2>
+      <p class="soft">One brand colour. Every coloured value is the same on paper and on night. Only the neutrals change with the theme, and neither theme uses pure white or pure black.</p>
+    </div>
+    <div class="group"><h3>Brand</h3><div class="swatches"><div class="sw" style="--c:#d32f6a"><i></i><strong>Raspberry</strong><code>#d32f6a</code><span>Colon, buttons, links</span></div></div></div>
+    <div class="group"><h3>Neutrals, light theme</h3><div class="swatches"><div class="sw" style="--c:#fafbfc"><i></i><strong>Paper</strong><code>#fafbfc</code><span>Page</span></div><div class="sw" style="--c:#f1f3f5"><i></i><strong>Mist</strong><code>#f1f3f5</code><span>Panels, code</span></div><div class="sw" style="--c:#d9dee3"><i></i><strong>Line</strong><code>#d9dee3</code><span>Borders</span></div><div class="sw" style="--c:#1f2630"><i></i><strong>Ink</strong><code>#1f2630</code><span>Text, logo letters</span></div><div class="sw" style="--c:#59636e"><i></i><strong>Ink soft</strong><code>#59636e</code><span>Secondary text</span></div></div></div>
+    <div class="group"><h3>Neutrals, dark theme</h3><div class="swatches"><div class="sw" style="--c:#161b22"><i></i><strong>Night</strong><code>#161b22</code><span>Page</span></div><div class="sw" style="--c:#1e242c"><i></i><strong>Dusk</strong><code>#1e242c</code><span>Panels, code</span></div><div class="sw" style="--c:#313943"><i></i><strong>Night line</strong><code>#313943</code><span>Borders</span></div><div class="sw" style="--c:#e3e8ee"><i></i><strong>Chalk</strong><code>#e3e8ee</code><span>Text, logo letters</span></div><div class="sw" style="--c:#9aa5b1"><i></i><strong>Chalk soft</strong><code>#9aa5b1</code><span>Secondary text</span></div></div></div>
+    <div class="group"><h3>Findings</h3><div class="swatches"><div class="sw" style="--c:#d63a24"><i></i><strong>Critical</strong><code>#d63a24</code><span>Severity</span></div><div class="sw" style="--c:#d97a0a"><i></i><strong>High</strong><code>#d97a0a</code><span>Severity</span></div><div class="sw" style="--c:#c9a00d"><i></i><strong>Medium</strong><code>#c9a00d</code><span>Severity</span></div><div class="sw" style="--c:#3b7fc4"><i></i><strong>Low</strong><code>#3b7fc4</code><span>Severity</span></div><div class="sw" style="--c:#3f9a63"><i></i><strong>Fixed</strong><code>#3f9a63</code><span>Status</span></div><div class="sw" style="--c:#7f79b8"><i></i><strong>Accepted</strong><code>#7f79b8</code><span>Status</span></div><div class="sw" style="--c:#7f8a94"><i></i><strong>Muted</strong><code>#7f8a94</code><span>Status</span></div></div></div>
+    <div class="group"><h3>Diagrams</h3><div class="swatches"><div class="sw" style="--c:#d32f6a"><i></i><strong>Raspberry</strong><code>#d32f6a</code><span>The subject</span></div><div class="sw" style="--c:#1f8a96"><i></i><strong>Petrol</strong><code>#1f8a96</code><span>Second series</span></div><div class="sw" style="--c:#6c7fd1"><i></i><strong>Indigo</strong><code>#6c7fd1</code><span>Third series</span></div><div class="sw" style="--c:#6a9a3f"><i></i><strong>Moss</strong><code>#6a9a3f</code><span>Fourth series</span></div><div class="sw" style="--c:#7f8a94"><i></i><strong>Slate</strong><code>#7f8a94</code><span>Context</span></div></div></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Type</h2>
+      <p class="soft">Figtree for the website and the docs, JetBrains Mono for code. The HTML report uses the reader's system font, because it must work offline.</p>
+    </div>
+    <div class="grid2">
+      <div class="spec">
+        <span class="label">Figtree</span>
+        <div class="big">Record your assessment once</div>
+        <p>You record each vulnerability as an entry in the Vulnlog file. An entry says which releases are affected, your verdict, the reasoning behind it, and what you plan to do.</p>
+        <div class="glyphs">Aa Bb Gg Ll Qq Rr Vv 0123456789</div>
+      </div>
+      <div class="spec mono">
+        <span class="label">JetBrains Mono</span>
+        <div class="big">vulnlog --help</div>
+        <p>Commands, file names, YAML and anything a reader might copy.</p>
+        <div class="glyphs">Aa Bb Gg Ll Qq Rr Vv 0123456789 {}[]:-</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>In use</h2>
+      <p class="soft">A website header and a report excerpt on both themes. The report rows are examples.</p>
+    </div>
+    <div class="grid2">
+      <div class="panel on-paper">
+        <div class="nav"><svg class="logo" viewBox="-10.11 2 671.11 196.06" role="img" aria-label="Vulnlog"><path fill="currentColor" fill-rule="evenodd" d="M612 150Q612 166.88 601.43 180.04Q590.87 193.21 574.39 196.86Q557.91 200.52 542.77 193.05Q527.63 185.58 520.5 170.29L518.38 165.75Q517.12 163.04 519.84 161.77L528.9 157.54Q531.62 156.27 532.89 158.99L535 163.52Q539.75 173.72 549.85 178.7Q559.94 183.68 570.93 181.24Q581.91 178.81 588.96 170.03Q596 161.25 596 150L596 135.79Q582.53 148 564 148Q544.12 148 530.06 133.94Q516 119.88 516 100Q516 80.12 530.06 66.06Q544.12 52 564 52Q582.53 52 596 64.21L596 55Q596 52 599 52L609 52Q612 52 612 55ZM496 100Q496 119.88 481.94 133.94Q467.88 148 448 148Q428.12 148 414.06 133.94Q400 119.88 400 100Q400 80.12 414.06 66.06Q428.12 52 448 52Q467.88 52 481.94 66.06Q496 80.12 496 100ZM38.6 145.98L-9.86 5.98Q-10.35 4.56 -9.88 3.61Q-9.42 2.66 -8 2.17Q-7.53 2 -7.02 2L3.56 2Q5.7 2 6.4 4.02L45 115.54L83.6 4.02Q84.3 2 86.44 2L97.02 2Q100.02 2 100.02 5Q100.02 5.5 99.86 5.98L51.4 145.98Q50.7 148 48.56 148L41.44 148Q39.3 148 38.6 145.98ZM267 148L257 148Q254 148 254 145L254 55Q254 52 257 52L267 52Q270 52 270 55L270 59.95Q280.35 52 294 52Q310.57 52 322.28 63.72Q334 75.43 334 92L334 145Q334 148 331 148L321 148Q318 148 318 145L318 92Q318 82.06 310.97 75.03Q303.94 68 294 68Q284.06 68 277.03 75.03Q270 82.06 270 97L270 145Q270 148 267 148ZM118 108Q118 117.94 125.03 124.97Q132.06 132 142 132Q151.94 132 158.97 124.97Q166 117.94 166 108L166 55Q166 52 169 52L179 52Q182 52 182 55L182 145Q182 148 179 148L169 148Q166 148 166 145L166 140.05Q155.65 148 142 148Q125.43 148 113.72 136.28Q102 124.57 102 108L102 55Q102 52 105 52L115 52Q118 52 118 55ZM480 100Q480 86.75 470.63 77.37Q461.25 68 448 68Q434.75 68 425.37 77.37Q416 86.75 416 100Q416 113.25 425.37 122.63Q434.75 132 448 132Q461.25 132 470.63 122.63Q480 113.25 480 100ZM596 100Q596 86.75 586.63 77.37Q577.25 68 564 68Q550.75 68 541.37 77.37Q532 86.75 532 100Q532 113.25 541.37 122.63Q550.75 132 564 132Q577.25 132 586.63 122.63Q596 113.25 596 100ZM223 148L213 148Q210 148 210 145L210 5Q210 2 213 2L223 2Q226 2 226 5L226 145Q226 148 223 148ZM375 148L365 148Q362 148 362 145L362 5Q362 2 365 2L375 2Q378 2 378 5L378 145Q378 148 375 148Z"/><circle cx="650.5" cy="70.5" r="10.5" fill="#d32f6a"/><circle cx="650.5" cy="137.5" r="10.5" fill="#d32f6a"/></svg><nav><span>Documentation</span><span>GitHub</span><span class="btn">Get started</span></nav></div>
+        <div class="hero-copy"><div class="big">Track vulnerability findings in your repository</div><p class="p-soft">Record your assessment once. Vulnlog generates what your scanners, your team and your customers need from it.</p><div class="cta"><span class="btn">Install the CLI</span><span class="link">Read the docs</span></div></div>
+      </div>
+      <div class="panel on-night">
+        <div class="nav"><svg class="logo" viewBox="-10.11 2 671.11 196.06" role="img" aria-label="Vulnlog"><path fill="currentColor" fill-rule="evenodd" d="M612 150Q612 166.88 601.43 180.04Q590.87 193.21 574.39 196.86Q557.91 200.52 542.77 193.05Q527.63 185.58 520.5 170.29L518.38 165.75Q517.12 163.04 519.84 161.77L528.9 157.54Q531.62 156.27 532.89 158.99L535 163.52Q539.75 173.72 549.85 178.7Q559.94 183.68 570.93 181.24Q581.91 178.81 588.96 170.03Q596 161.25 596 150L596 135.79Q582.53 148 564 148Q544.12 148 530.06 133.94Q516 119.88 516 100Q516 80.12 530.06 66.06Q544.12 52 564 52Q582.53 52 596 64.21L596 55Q596 52 599 52L609 52Q612 52 612 55ZM496 100Q496 119.88 481.94 133.94Q467.88 148 448 148Q428.12 148 414.06 133.94Q400 119.88 400 100Q400 80.12 414.06 66.06Q428.12 52 448 52Q467.88 52 481.94 66.06Q496 80.12 496 100ZM38.6 145.98L-9.86 5.98Q-10.35 4.56 -9.88 3.61Q-9.42 2.66 -8 2.17Q-7.53 2 -7.02 2L3.56 2Q5.7 2 6.4 4.02L45 115.54L83.6 4.02Q84.3 2 86.44 2L97.02 2Q100.02 2 100.02 5Q100.02 5.5 99.86 5.98L51.4 145.98Q50.7 148 48.56 148L41.44 148Q39.3 148 38.6 145.98ZM267 148L257 148Q254 148 254 145L254 55Q254 52 257 52L267 52Q270 52 270 55L270 59.95Q280.35 52 294 52Q310.57 52 322.28 63.72Q334 75.43 334 92L334 145Q334 148 331 148L321 148Q318 148 318 145L318 92Q318 82.06 310.97 75.03Q303.94 68 294 68Q284.06 68 277.03 75.03Q270 82.06 270 97L270 145Q270 148 267 148ZM118 108Q118 117.94 125.03 124.97Q132.06 132 142 132Q151.94 132 158.97 124.97Q166 117.94 166 108L166 55Q166 52 169 52L179 52Q182 52 182 55L182 145Q182 148 179 148L169 148Q166 148 166 145L166 140.05Q155.65 148 142 148Q125.43 148 113.72 136.28Q102 124.57 102 108L102 55Q102 52 105 52L115 52Q118 52 118 55ZM480 100Q480 86.75 470.63 77.37Q461.25 68 448 68Q434.75 68 425.37 77.37Q416 86.75 416 100Q416 113.25 425.37 122.63Q434.75 132 448 132Q461.25 132 470.63 122.63Q480 113.25 480 100ZM596 100Q596 86.75 586.63 77.37Q577.25 68 564 68Q550.75 68 541.37 77.37Q532 86.75 532 100Q532 113.25 541.37 122.63Q550.75 132 564 132Q577.25 132 586.63 122.63Q596 113.25 596 100ZM223 148L213 148Q210 148 210 145L210 5Q210 2 213 2L223 2Q226 2 226 5L226 145Q226 148 223 148ZM375 148L365 148Q362 148 362 145L362 5Q362 2 365 2L375 2Q378 2 378 5L378 145Q378 148 375 148Z"/><circle cx="650.5" cy="70.5" r="10.5" fill="#d32f6a"/><circle cx="650.5" cy="137.5" r="10.5" fill="#d32f6a"/></svg><nav><span>Documentation</span><span>GitHub</span><span class="btn">Get started</span></nav></div>
+        <div class="hero-copy"><div class="big">Track vulnerability findings in your repository</div><p class="p-soft">Record your assessment once. Vulnlog generates what your scanners, your team and your customers need from it.</p><div class="cta"><span class="btn">Install the CLI</span><span class="link">Read the docs</span></div></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel report on-paper"><div class="scroll"><table><thead><tr><th>Example finding</th><th>Severity</th><th>Verdict</th></tr></thead><tbody><tr style="--stripe:#d63a24"><td>CVE-0000-0001</td><td>Critical</td><td>Affected</td></tr><tr style="--stripe:#d97a0a"><td>CVE-0000-0002</td><td>High</td><td>Under investigation</td></tr><tr style="--stripe:#c9a00d"><td>CVE-0000-0003</td><td>Medium</td><td>Not affected</td></tr><tr style="--stripe:#3b7fc4"><td>CVE-0000-0004</td><td>Low</td><td>Not affected</td></tr><tr style="--stripe:#3f9a63"><td>CVE-0000-0005</td><td>High</td><td>Fixed</td></tr><tr style="--stripe:#7f79b8"><td>CVE-0000-0006</td><td>Medium</td><td>Risk accepted</td></tr></tbody></table></div><div class="foot"><svg width="18" height="18" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><rect width="200" height="200" rx="44" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>Generated by Vulnlog</div></div>
+      <div class="panel report on-night"><div class="scroll"><table><thead><tr><th>Example finding</th><th>Severity</th><th>Verdict</th></tr></thead><tbody><tr style="--stripe:#d63a24"><td>CVE-0000-0001</td><td>Critical</td><td>Affected</td></tr><tr style="--stripe:#d97a0a"><td>CVE-0000-0002</td><td>High</td><td>Under investigation</td></tr><tr style="--stripe:#c9a00d"><td>CVE-0000-0003</td><td>Medium</td><td>Not affected</td></tr><tr style="--stripe:#3b7fc4"><td>CVE-0000-0004</td><td>Low</td><td>Not affected</td></tr><tr style="--stripe:#3f9a63"><td>CVE-0000-0005</td><td>High</td><td>Fixed</td></tr><tr style="--stripe:#7f79b8"><td>CVE-0000-0006</td><td>Medium</td><td>Risk accepted</td></tr></tbody></table></div><div class="foot"><svg width="18" height="18" viewBox="0 0 200 200" role="img" aria-label="Vulnlog mark"><rect width="200" height="200" rx="44" fill="#d32f6a"/><g fill="#ffffff"><path fill-rule="evenodd" d="M69.89 152.66L33.61 49.66Q32.44 46.36 35.74 45.2Q36.31 45 36.91 45L52.81 45Q55.29 45 56.11 47.34L78.5 110.89L100.89 47.34Q101.71 45 104.19 45L120.09 45Q123.59 45 123.59 48.5Q123.59 49.1 123.39 49.66L87.11 152.66Q86.29 155 83.81 155L73.19 155Q70.71 155 69.89 152.66Z"/><circle cx="151.5" cy="92" r="13"/><circle cx="151.5" cy="142" r="13"/></g></svg>Generated by Vulnlog</div></div>
+    </div>
+    <div class="stickers">
+      <span class="sticker a">Vulnlog: fixed</span>
+      <span class="sticker b">Vulnlog<b>:</b> not affected</span>
+      <span class="sticker c">Vulnlog<b>:</b> on record</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><h2>Writing the name</h2></div>
+    <div class="rules">
+      <ul>
+        <li><strong>Vulnlog</strong> in every sentence, with a capital V</li>
+        <li><code>vulnlog</code> only as a command, package or file name</li>
+        <li>The colon belongs to the logo, never to running text</li>
+      </ul>
+      <ul>
+        <li><s>VulnLog</s></li>
+        <li><s>vulnlog</s> as a name in a sentence</li>
+        <li><s>Vulnlog:</s> typed out in a paragraph or heading</li>
+      </ul>
+    </div>
+  </section>
+</div>
+</body>
+</html>
