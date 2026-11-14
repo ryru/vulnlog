@@ -36,7 +36,7 @@ Vulnlog doesn't host or publish reports, so put the file where your readers alre
 
 This is the report for Acme Shop:
 
-image::impact-report.png["The impact report of Acme Shop. The About and Summary boxes are above a table with one row for each of the six vulnerabilities. Select the image to open it in full size.",link=self]
+image::impact-report.png["The impact report of Acme Shop. Two bars with the open entries by severity and all entries by state are above a table with one row for each of the six vulnerabilities. Select the image to open it in full size.",link=self]
 
 To learn to read the report, follow the tutorial xref:get-started/quickstart-report.adoc[Read the impact report].
 
@@ -108,8 +108,9 @@ See xref:guides/run-in-ci.adoc[Run in CI pipelines].
 
 == Check the result
 
-Open the report and look at the *About* section.
-*Inputs* names the Vulnlog files, and *Filter* names the filters you used, or `none`.
+Open the report and look at the line below the heading.
+It names the Vulnlog files and, after *Filtered by*, the filters you used.
+A report without filters says _Not filtered_.
 If either is wrong, the report shows the wrong entries.
 
 For what the states mean, see xref:reference/verdicts-and-justifications.adoc#states[States].

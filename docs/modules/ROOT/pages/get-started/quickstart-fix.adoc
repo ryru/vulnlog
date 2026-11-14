@@ -118,7 +118,7 @@ Wrote: vulnlog-impact-report.html
 
 Open `vulnlog-impact-report.html` in your browser.
 The table has one row.
-`CVE-2022-22965` is _Open_, with *Severity* _Medium_ and *Disposition* _Will fix_.
+`CVE-2022-22965` is _Open_, with _Medium severity_ and _Will fix_.
 The *Releases* column shows 4.3.0.
 
 An entry is `open` when it affects you and no release fixes it yet.
@@ -255,7 +255,7 @@ Wrote: acme-shop-4.3.0.html
 ----
 
 Open `acme-shop-4.3.0.html`.
-Under *About*, the *Filter* line reads `as of=4.3.0`, and `CVE-2022-22965` is _Open_.
+The report says *Filtered by* `as of=4.3.0`, and `CVE-2022-22965` is _Open_.
 A fix in a later release doesn't help a user of 4.3.0.
 
 Generate the suppression file again:

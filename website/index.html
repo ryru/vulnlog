@@ -3,534 +3,464 @@
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1" name="viewport">
-    <meta content="Vulnlog is an open-source CLI for supply chain security: track SCA vulnerability findings in your repository, document analysis and verdicts, and generate suppression files for your scanners."
+    <meta content="Vulnlog is a YAML format and a CLI for recording how vulnerabilities affect your software, and for generating suppression files, reports, and OpenVEX documents."
           name="description">
-    <title>Vulnlog - Track vulnerability findings in your repository</title>
-    <link href="favicon.ico" rel="icon">
+    <title>Vulnlog - Record how vulnerabilities affect your software</title>
+    <link href="img/favicon.svg" rel="icon" type="image/svg+xml">
+    <link href="favicon.ico" rel="icon" sizes="32x32">
+    <link href="https://fonts.bunny.net" rel="preconnect">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,600,700|jetbrains-mono:400,500&display=swap"
+          rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
-
-    <link rel="canonical" href="https://vulnlog.dev/">
+    <link href="https://vulnlog.dev/" rel="canonical">
 
     <!-- Open Graph -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://vulnlog.dev/">
-    <meta property="og:title" content="Vulnlog - Track vulnerability findings in your repository">
-    <meta property="og:description"
-          content="Open-source CLI for SCA vulnerability triage. Track findings, document verdicts and generate suppression files, all from YAML in your repo.">
-    <meta property="og:image" content="https://vulnlog.dev/img/vulnlog-overview.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt"
-          content="How Vulnlog works: scanner reports a finding, engineer analyses the impact, Vulnlog generates report and ignore files.">
+    <meta content="website" property="og:type">
+    <meta content="https://vulnlog.dev/" property="og:url">
+    <meta content="Vulnlog - Record how vulnerabilities affect your software" property="og:title">
+    <meta content="A YAML format and a CLI. Record your analysis once, in your Git repository, and generate suppression files, reports, and OpenVEX documents from it."
+          property="og:description">
+    <meta content="https://vulnlog.dev/img/vulnlog-social.png" property="og:image">
+    <meta content="1200" property="og:image:width">
+    <meta content="630" property="og:image:height">
+    <meta content="The Vulnlog logo above the line: Record how vulnerabilities affect your software."
+          property="og:image:alt">
 
     <!-- Twitter / X -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Vulnlog - Track vulnerability findings in your repository">
-    <meta name="twitter:description"
-          content="Open-source CLI for SCA vulnerability triage. Track findings, document verdicts and generate suppression files, all from YAML in your repo.">
-    <meta name="twitter:image" content="https://vulnlog.dev/img/vulnlog-overview.png">
+    <meta content="summary_large_image" name="twitter:card">
+    <meta content="Vulnlog - Record how vulnerabilities affect your software" name="twitter:title">
+    <meta content="A YAML format and a CLI. Record your analysis once, in your Git repository, and generate suppression files, reports, and OpenVEX documents from it."
+          name="twitter:description">
+    <meta content="https://vulnlog.dev/img/vulnlog-social.png" name="twitter:image">
+
     <script>window.plausible = window.plausible || function () {
         (window.plausible.q = window.plausible.q || []).push(arguments)
     }</script>
+    <script>
+        // Before the first paint, so a stored theme doesn't flash the other one.
+        // The key is the one the documentation uses, so the choice holds on both.
+        try {
+            const stored = localStorage.getItem('vulnlog-theme');
+            if (stored === 'light' || stored === 'dark') document.documentElement.dataset.theme = stored;
+        } catch (e) {
+        }
+    </script>
 </head>
 <body>
 
 <a class="skip-link" href="#main">Skip to main content</a>
 
-<!-- Navbar -->
-<nav aria-label="main navigation" class="navbar container" role="navigation">
-    <div class="navbar-brand">
-        <a aria-label="Vulnlog home" href="/">
-            <svg aria-hidden="true" viewBox="0 0 154.64 49.784" width="120px"
-                 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-                <defs>
-                    <linearGradient id="lg1">
-                        <stop offset="0" stop-color="#f200cf"/>
-                        <stop offset="1" stop-color="#ff278f"/>
-                    </linearGradient>
-                    <linearGradient gradientTransform="translate(-332.85 -997.27)" gradientUnits="userSpaceOnUse"
-                                    id="lg2" x1="362.33" x2="390.12"
-                                    xlink:href="#lg1" y1="1070.1"
-                                    y2="1070.1"/>
-                    <linearGradient gradientTransform="translate(-332.85 -997.27)" gradientUnits="userSpaceOnUse"
-                                    id="lg3" x1="362.33" x2="390.12"
-                                    xlink:href="#lg1" y1="1070.1"
-                                    y2="1070.1"/>
-                </defs>
-                <g stroke-width="5" transform="translate(-29.478 -47.388)">
-                    <path d="m44.734 74.91-4.2824 10.581h6.305l10.516-25.4h-6.5024z" fill="url(#lg2)"/>
-                    <path d="m29.485 60.091 9.0005 21.636 3.1662-7.8238-5.6642-13.812z" fill="url(#lg3)"/>
-                    <path d="m40.045 85.488h6.7056l10.516-25.4h-6.5024l-7.366 18.085-7.4168-18.085h-6.5024z"
-                          fill-opacity="0"/>
-                    <path class="logo-fill"
-                          d="m85.495 47.388v38.1h5.9945v-38.1zm36.763 0v38.1h5.9945v-38.1zm-13.556 12.192c-2.9972 0-5.7401 1.2698-7.6197 3.251v-2.743h-5.9945v25.4h5.9945v-13.716c0-4.0132 2.6925-6.5531 6.1469-6.5531 3.2004 0 5.4353 1.981 5.4353 6.2482v14.021h5.9945v-15.291c0-6.4516-4.0642-10.617-9.957-10.617zm34.833 0c-7.2644 0-13.208 5.8928-13.208 13.208 0 7.2644 5.9436 13.208 13.208 13.208 7.3152 0 13.208-5.9436 13.208-13.208 0-7.3152-5.8928-13.208-13.208-13.208zm26.764 0c-7.2644 0-12.598 5.9436-12.598 13.208s5.3338 13.208 12.598 13.208c3.2004 0 6.1469-1.6761 7.8233-3.7589v3.1492c0 3.81-2.7434 6.0963-7.4678 6.0963-2.4892 0-5.1817-.91466-7.1629-2.5911l-4.1656 4.1656c2.9972 2.7432 7.2135 4.115 11.227 4.115 8.4328 0 13.564-4.6228 13.564-12.192v-24.892h-5.9945v3.1497c-1.6764-1.9812-4.6229-3.6577-7.8233-3.6577zm-111.97.50798v15.291c0 6.4516 4.0637 10.617 9.9565 10.617 2.9972 0 5.7406-1.2698 7.6202-3.251v2.743h5.9945v-25.4h-5.9945v13.716c0 3.9624-2.6925 6.5531-6.1469 6.5531-3.2004 0-5.4353-2.0318-5.4353-6.2482v-14.021zm85.21 5.4865c3.9624 0 7.2135 3.2511 7.2135 7.2135s-3.2511 7.2135-7.2135 7.2135-7.2135-3.2511-7.2135-7.2135 3.2511-7.2135 7.2135-7.2135zm27.374 0c3.9624 0 7.2135 3.2511 7.2135 7.2135s-3.2511 7.2135-7.2135 7.2135-7.214-3.2511-7.214-7.2135 3.2516-7.2135 7.214-7.2135z"/>
-                </g>
-            </svg>
-        </a>
-    </div>
-
-    <button aria-controls="mainMenu" aria-expanded="false" aria-label="Toggle menu" class="navbar-toggle">
-        <span></span><span></span><span></span>
-    </button>
-
-    <div class="navbar-menu" id="mainMenu">
-        <a href="/docs/">Documentation</a>
-        <a href="https://github.com/vulnlog/vulnlog" rel="noopener noreferrer" target="_blank">GitHub</a>
-        <div class="navbar-badges">
-            <img alt="GitHub Repo stars" height="20" src="https://img.shields.io/github/stars/vulnlog/vulnlog"
-                 width="80">
-            <img alt="GitHub Release" height="20"
-                 src="https://img.shields.io/github/v/release/vulnlog/vulnlog?color=%23f405c5" width="100">
-        </div>
-        <button aria-label="Toggle dark mode" aria-pressed="false" class="theme-toggle">
-            <svg aria-hidden="true" class="icon-moon" fill="none" height="18" stroke="currentColor"
-                 stroke-linecap="round"
-                 stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18"
-                 xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-            <svg aria-hidden="true" class="icon-sun" fill="none" height="18" stroke="currentColor"
-                 stroke-linecap="round"
-                 stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18"
-                 xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="5"/>
-                <line x1="12" x2="12" y1="1" y2="3"/>
-                <line x1="12" x2="12" y1="21" y2="23"/>
-                <line x1="4.22" x2="5.64" y1="4.22" y2="5.64"/>
-                <line x1="18.36" x2="19.78" y1="18.36" y2="19.78"/>
-                <line x1="1" x2="3" y1="12" y2="12"/>
-                <line x1="21" x2="23" y1="12" y2="12"/>
-                <line x1="4.22" x2="5.64" y1="19.78" y2="18.36"/>
-                <line x1="18.36" x2="19.78" y1="5.64" y2="4.22"/>
-            </svg>
-        </button>
-    </div>
-</nav>
+<div class="band-sea">
+    <header class="header wrap">
+        <a aria-label="Vulnlog home" class="logo" href="/"><svg aria-hidden="true" viewBox="-11.84 0 673.84 200.07" xmlns="http://www.w3.org/2000/svg"><g id="logo"><path fill="currentColor" fill-rule="evenodd" d="M614 150Q614 167.58 602.99 181.3Q591.99 195.01 574.82 198.81Q557.66 202.62 541.89 194.84Q526.12 187.07 518.68 171.13L516.78 167.05Q515.82 164.99 516.6 162.85Q517.38 160.71 519.44 159.74L527.6 155.94Q529.66 154.98 531.81 155.76Q533.95 156.54 534.91 158.6L536.81 162.68Q541.27 172.24 550.73 176.91Q560.19 181.57 570.49 179.29Q580.79 177.01 587.4 168.78Q594 160.55 594 150L594 140.07Q581.06 150 564 150Q543.29 150 528.64 135.36Q514 120.71 514 100Q514 79.29 528.64 64.64Q543.29 50 564 50Q581.06 50 594 59.93L594 55.5Q594 53.22 595.61 51.61Q597.22 50 599.5 50L608.5 50Q610.78 50 612.39 51.61Q614 53.22 614 55.5ZM498 100Q498 120.71 483.36 135.36Q468.71 150 448 150Q427.29 150 412.64 135.36Q398 120.71 398 100Q398 79.29 412.64 64.64Q427.29 50 448 50Q468.71 50 483.36 64.64Q498 79.29 498 100ZM36.6 146.3L-11.52 7.3Q-12.26 5.15 -11.27 3.1Q-10.27 1.05 -8.12 0.3Q-7.24 0 -6.32 0L3.2 0Q7.12 0 8.4 3.7L45 109.43L81.6 3.7Q82.88 0 86.8 0L96.32 0Q98.6 0 100.21 1.61Q101.82 3.22 101.82 5.5Q101.82 6.42 101.52 7.3L53.4 146.3Q52.12 150 48.2 150L41.8 150Q37.88 150 36.6 146.3ZM266.5 150L257.5 150Q255.22 150 253.61 148.39Q252 146.78 252 144.5L252 55.5Q252 53.22 253.61 51.61Q255.22 50 257.5 50L266.5 50Q268.78 50 270.39 51.61Q272 53.22 272 55.5L272 56.12Q281.73 50 294 50Q311.4 50 323.7 62.3Q336 74.6 336 92L336 144.5Q336 146.78 334.39 148.39Q332.78 150 330.5 150L321.5 150Q319.22 150 317.61 148.39Q316 146.78 316 144.5L316 92Q316 82.89 309.56 76.44Q303.11 70 294 70Q284.89 70 278.44 76.44Q272 82.89 272 96.5L272 144.5Q272 146.78 270.39 148.39Q268.78 150 266.5 150ZM120 108Q120 117.11 126.44 123.56Q132.89 130 142 130Q151.11 130 157.56 123.56Q164 117.11 164 108L164 55.5Q164 53.22 165.61 51.61Q167.22 50 169.5 50L178.5 50Q180.78 50 182.39 51.61Q184 53.22 184 55.5L184 144.5Q184 146.78 182.39 148.39Q180.78 150 178.5 150L169.5 150Q167.22 150 165.61 148.39Q164 146.78 164 144.5L164 143.88Q154.27 150 142 150Q124.6 150 112.3 137.7Q100 125.4 100 108L100 55.5Q100 53.22 101.61 51.61Q103.22 50 105.5 50L114.5 50Q116.78 50 118.39 51.61Q120 53.22 120 55.5ZM374.5 150L365.5 150Q363.22 150 361.61 148.39Q360 146.78 360 144.5L360 5.5Q360 3.22 361.61 1.61Q363.22 0 365.5 0L374.5 0Q376.78 0 378.39 1.61Q380 3.22 380 5.5L380 144.5Q380 146.78 378.39 148.39Q376.78 150 374.5 150ZM222.5 150L213.5 150Q211.22 150 209.61 148.39Q208 146.78 208 144.5L208 5.5Q208 3.22 209.61 1.61Q211.22 0 213.5 0L222.5 0Q224.78 0 226.39 1.61Q228 3.22 228 5.5L228 144.5Q228 146.78 226.39 148.39Q224.78 150 222.5 150ZM478 100Q478 87.57 469.21 78.79Q460.43 70 448 70Q435.57 70 426.79 78.79Q418 87.57 418 100Q418 112.43 426.79 121.21Q435.57 130 448 130Q460.43 130 469.21 121.21Q478 112.43 478 100ZM594 100Q594 87.57 585.21 78.79Q576.43 70 564 70Q551.57 70 542.79 78.79Q534 87.57 534 100Q534 112.43 542.79 121.21Q551.57 130 564 130Q576.43 130 585.21 121.21Q594 112.43 594 100Z"/><circle cx="649" cy="71.0" r="13" fill="#d32f6a"/><circle cx="649" cy="137.0" r="13" fill="#d32f6a"/></g></svg></a>
+        <nav aria-label="Main">
+            <a href="/docs/">Documentation</a>
+            <a href="https://github.com/vulnlog/vulnlog" rel="noopener noreferrer" target="_blank">GitHub</a>
+            <button class="theme-toggle" data-mode="system" type="button">
+                <svg aria-hidden="true" class="icon-system" fill="currentColor" height="18" viewBox="0 0 16 16" width="18"><path d="M1.75 2h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 13H10.5v1.5h1.25a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1 0-1.5H5.5V13H1.75A1.75 1.75 0 0 1 0 11.25v-7.5C0 2.784.784 2 1.75 2ZM7 13v1.5h2V13Zm7.25-9.5H1.75a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>
+                <svg aria-hidden="true" class="icon-light" fill="currentColor" height="18" viewBox="0 0 16 16" width="18"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-1.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm5.657-8.157a.75.75 0 0 1 0 1.061l-1.061 1.06a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l1.06-1.06a.75.75 0 0 1 1.06 0Zm-9.193 9.193a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 1 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm13 0a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8Zm-8 5a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13Zm3.536-1.464a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-1.06-1.06a.75.75 0 0 1 0-1.06Z"/></svg>
+                <svg aria-hidden="true" class="icon-dark" fill="currentColor" height="18" viewBox="0 0 16 16" width="18"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
+            </button>
+        </nav>
+    </header>
+</div>
 
 <main id="main">
 
-    <!-- Hero -->
-    <section class="hero">
-        <div class="container">
-            <div class="hero-inner">
-                <div class="hero-content">
-                    <h1>Track vulnerability findings in your repository</h1>
-                    <p class="hero-tagline">Supply chain security, as code.</p>
-                    <p>Vulnlog is an open-source CLI tool that gives teams a single source of truth for SCA
-                        vulnerability triage. Analyze findings, document verdicts and team decisions, generate
-                        suppression files and HTML reports,
-                        all from YAML files in the repository.</p>
-                    <div class="btn-group">
-                        <a class="btn btn-primary btn-lg" href="/docs/">Get Started</a>
-                        <a class="btn btn-secondary btn-lg" href="https://github.com/vulnlog/vulnlog"
-                           rel="noopener noreferrer"
-                           target="_blank">View on GitHub</a>
-                    </div>
+    <section class="band-sea hero">
+        <div class="wrap center">
+            <h1>Record how vulnerabilities affect your software</h1>
+            <p class="lead">Write your analysis once, in a file in your Git repository. Vulnlog generates what your
+                scanners, your team, and your customers need from it.</p>
+            <div class="buttons">
+                <a class="btn" href="/docs/">Get started</a>
+                <a class="btn btn-quiet" href="https://github.com/vulnlog/vulnlog" rel="noopener noreferrer"
+                   target="_blank">View on GitHub</a>
+            </div>
+        </div>
+    </section>
+
+    <svg aria-hidden="true" height="0" width="0">
+        <symbol id="sheet" viewBox="0 0 48 48"><path d="M14 5h14l10 10v26a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M28 5v10h10"/></symbol>
+    </svg>
+
+    <section class="band">
+        <div class="wrap">
+            <div class="center">
+                <h2>How Vulnlog works</h2>
+                <p class="lead">Scanners, customers, and auditors report vulnerabilities in your software. Many
+                    don't affect it, and the others take time to fix. Vulnlog is where you keep your answer.</p>
+            </div>
+            <div class="explain">
+                <div>
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><use href="#sheet"/><path d="M17.5 25.5l4.5 11 4.5-11"/><circle class="accent-fill" cx="31.5" cy="29" r="1.8"/><circle class="accent-fill" cx="31.5" cy="35.5" r="1.8"/></svg>
+                    <h3>The Vulnlog file</h3>
+                    <p>A YAML file in your Git repository. Each vulnerability is one entry. It says which releases
+                        are affected, your verdict, the analysis behind it, and what you plan to do.</p>
                 </div>
-                <div class="hero-code">
-                    <div class="code-block" id="hero-example"></div>
-                    <script id="hero-example-src" type="text/plain">
-                        # $schema: https://vulnlog.dev/schema/vulnlog-v1.json
-                        ---
-                        schemaVersion: "1"
-
-                        project:
-                          organization: Acme Corp
-                          name: Acme Web App
-                          author: Security Team
-
-                        releases:
-                          - id: 1.0.0
-                            published_at: 2026-01-15
-
-                        vulnerabilities:
-                          - id: CVE-2025-1234
-                            releases: [1.0.0]
-                            packages: ["pkg:npm/example-lib@2.3.0"]
-                            reports:
-                              - reporter: trivy
-                            analysis: The vulnerable code path is not reachable in our application.
-                            verdict: not affected
-                            justification: vulnerable code not in execute path
-                    </script>
+                <div>
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><rect x="6" y="9" width="36" height="30" rx="3"/><path class="accent" d="M14 19l6 5-6 5"/><path d="M24 30h9"/></svg>
+                    <h3>The Vulnlog tools</h3>
+                    <p>A command-line tool, a Gradle plugin, and a GitHub Action. They check the Vulnlog file and
+                        generate from it what your scanners, your team, and your customers need.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- How it works -->
-    <section class="section">
-        <div class="container">
-            <h2 class="section-title">How it works</h2>
-            <div class="grid grid-3">
-                <div class="step">
-                    <div class="step-icon">
-                        <svg aria-hidden="true" fill="none" height="48" stroke="currentColor" stroke-linecap="round"
-                             stroke-linejoin="round"
-                             stroke-width="1.5" viewBox="0 0 24 24" width="48" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" x2="8" y1="13" y2="13"/>
-                            <line x1="16" x2="8" y1="17" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
-                        </svg>
-                    </div>
-                    <h3>1. Scanner reports a finding</h3>
-                    <p>Your SCA scanner (Trivy, Snyk, etc.) detects a vulnerability in a dependency.</p>
+    <section class="band band-sand">
+        <div class="wrap">
+            <div class="center">
+                <h2>What Vulnlog generates</h2>
+            </div>
+            <div class="features">
+                <article class="feature">
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><use href="#sheet"/><circle class="accent" cx="25" cy="30" r="6.5"/><path class="accent" d="M20.4 34.6l9.2-9.2"/></svg>
+                    <h3>Suppression files</h3>
+                    <p>Your scanners stop reporting what you've already analysed. Vulnlog writes the native format
+                        for Trivy, Snyk, OWASP Dependency-Check, and cargo-audit, and a generic JSON file for every
+                        other scanner.</p>
+                </article>
+                <article class="feature">
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><use href="#sheet"/><path d="M19 37v-6M31 37v-8"/><path class="accent" d="M25 37V24"/></svg>
+                    <h3>Impact report</h3>
+                    <p>One HTML file that shows which releases a vulnerability affects, and how severely. Share it
+                        with your customers, auditors, and managers.</p>
+                </article>
+                <article class="feature">
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><use href="#sheet"/><path class="accent" d="M18.5 30.5l4.5 4.5 8.5-9.5"/></svg>
+                    <h3>OpenVEX documents</h3>
+                    <p>OpenVEX documents tell your customers' tools whether a release is affected by a
+                        vulnerability. The feature is incubating, and CycloneDX VEX follows soon.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="band">
+        <div class="wrap">
+            <div class="center">
+                <h2>One entry in, several files out</h2>
+                <p class="lead">An entry from Acme Shop, the example project of the documentation, and what three
+                    commands generate from it.</p>
+            </div>
+            <div class="demo" data-tabs>
+                <p class="demo-label">Your Vulnlog file <code>acme-shop.vl.yaml</code>, one entry</p>
+                <div class="panel">
+                    <pre><code class="lang-yaml">- id: CVE-2022-22965
+  name: Spring4Shell
+  description: Remote code execution through data binding in Spring Framework
+  releases:
+    - 4.2.0
+    - 4.3.0
+  packages: [&quot;pkg:maven/org.springframework/spring-beans@5.3.15&quot;]
+  reports:
+    - reporter: trivy
+      at: 2026-04-07
+      suppress:
+        expires_at: 2027-03-31
+  tags:
+    - backend
+    - container
+  analysis: &gt;-
+    Acme Shop runs as a Spring Boot executable JAR on JDK 17. The published
+    exploit needs a WAR deployment on Apache Tomcat, but Spring advises all
+    users to upgrade.
+  analyzed_at: 2026-04-08
+  verdict: affected
+  severity: medium
+  disposition: will fix
+  comment: Planned for 4.4.0 together with the Spring Boot update.</code></pre>
                 </div>
-                <div class="step">
-                    <div class="step-icon">
-                        <svg aria-hidden="true" fill="none" height="48" stroke="currentColor" stroke-linecap="round"
-                             stroke-linejoin="round"
-                             stroke-width="1.5" viewBox="0 0 24 24" width="48" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="11" cy="11" r="8"/>
-                            <line x1="21" x2="16.65" y1="21" y2="16.65"/>
-                        </svg>
-                    </div>
-                    <h3>2. You analyse and document</h3>
-                    <p>Record your verdict, justification, and analysis in a <code>.vl.yaml</code> file alongside your
-                        code.
-                    </p>
+                <svg aria-hidden="true" class="demo-arrow" fill="none" height="32" stroke="currentColor"
+                         stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 32" width="24">
+                        <path d="M12 3v25M4 20l8 8 8-8"/>
+                    </svg>
+                <div aria-label="What to generate" class="tabs" hidden role="tablist">
+                    <button aria-controls="out-trivy" class="tab" role="tab" type="button">For Trivy</button>
+                    <button aria-controls="out-generic" class="tab" role="tab" type="button">For any scanner</button>
+                    <button aria-controls="out-vex" class="tab" role="tab" type="button">OpenVEX</button>
                 </div>
-                <div class="step">
-                    <div class="step-icon">
-                        <svg aria-hidden="true" fill="none" height="48" stroke="currentColor" stroke-linecap="round"
-                             stroke-linejoin="round"
-                             stroke-width="1.5" viewBox="0 0 24 24" width="48" xmlns="http://www.w3.org/2000/svg">
-                            <polyline points="4 17 10 11 4 5"/>
-                            <line x1="12" x2="20" y1="19" y2="19"/>
-                        </svg>
+                <div class="demo-step" id="out-trivy" role="tabpanel">
+                    <div class="command"><code>vulnlog suppress acme-shop.vl.yaml --reporter trivy</code></div>
+                    <svg aria-hidden="true" class="demo-arrow" fill="none" height="32" stroke="currentColor"
+                         stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 32" width="24">
+                        <path d="M12 3v25M4 20l8 8 8-8"/>
+                    </svg>
+                    <p class="demo-label">Generated file <code>.trivyignore.yaml</code></p>
+                    <div class="panel">
+                        <pre><code class="lang-yaml"># Generated by Vulnlog (https://vulnlog.dev). DO NOT EDIT.
+---
+vulnerabilities:
+  - id: CVE-2022-22965
+    expired_at: 2027-03-31
+    statement: &gt;-
+      Acme Shop runs as a Spring Boot executable JAR on JDK 17. The
+      published exploit needs a WAR deployment on Apache Tomcat, but Spring
+      advises all users to upgrade.</code></pre>
                     </div>
-                    <h3>3. Generate outputs</h3>
-                    <p>Use the CLI or Gradle plugin to validate files, generate scanner suppressions, and produce HTML
-                        reports.</p>
+                </div>
+                <div class="demo-step" id="out-generic" role="tabpanel">
+                    <div class="command"><code>vulnlog suppress acme-shop.vl.yaml --reporter trivy --format generic</code></div>
+                    <svg aria-hidden="true" class="demo-arrow" fill="none" height="32" stroke="currentColor"
+                         stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 32" width="24">
+                        <path d="M12 3v25M4 20l8 8 8-8"/>
+                    </svg>
+                    <p class="demo-label">Generated file <code>trivy.generic.json</code></p>
+                    <div class="panel">
+                        <pre><code>{
+  &quot;vulnerabilities&quot; : [ {
+    &quot;id&quot; : &quot;CVE-2022-22965&quot;,
+    &quot;expires_at&quot; : &quot;2027-03-31&quot;,
+    &quot;statement&quot; : &quot;Acme Shop runs as a Spring Boot executable JAR on JDK 17. The published exploit needs a WAR deployment on Apache Tomcat, but Spring advises all users to upgrade.&quot;
+  } ]
+}</code></pre>
+                    </div>
+                </div>
+                <div class="demo-step" id="out-vex" role="tabpanel">
+                    <div class="command"><code>vulnlog vex openvex acme-shop.vl.yaml</code></div>
+                    <svg aria-hidden="true" class="demo-arrow" fill="none" height="32" stroke="currentColor"
+                         stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 32" width="24">
+                        <path d="M12 3v25M4 20l8 8 8-8"/>
+                    </svg>
+                    <p class="demo-label">Generated file <code>vex.json</code>, one statement</p>
+                    <div class="panel">
+                        <pre><code>{
+  &quot;vulnerability&quot;: {
+    &quot;@id&quot;: &quot;https://nvd.nist.gov/vuln/detail/CVE-2022-22965&quot;,
+    &quot;name&quot;: &quot;CVE-2022-22965&quot;,
+    &quot;description&quot;: &quot;Remote code execution through data binding in Spring Framework&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-04-08T00:00:00Z&quot;,
+  &quot;products&quot;: [
+    {
+      &quot;@id&quot;: &quot;pkg:maven/com.acme/acme-shop-server@4.2.0&quot;,
+      &quot;identifiers&quot;: {
+        &quot;purl&quot;: &quot;pkg:maven/com.acme/acme-shop-server@4.2.0&quot;
+      },
+      &quot;subcomponents&quot;: [
+        {
+          &quot;@id&quot;: &quot;pkg:maven/org.springframework/spring-beans@5.3.15&quot;,
+          &quot;identifiers&quot;: {
+            &quot;purl&quot;: &quot;pkg:maven/org.springframework/spring-beans@5.3.15&quot;
+          }
+        }
+      ]
+    },
+    {
+      &quot;@id&quot;: &quot;pkg:oci/acme-shop@sha256%3Acf9066b0fcef66d545007bd33b5d8d59e7434e37c2a23d19a3075fdb6f0b48b9&quot;,
+      &quot;identifiers&quot;: {
+        &quot;purl&quot;: &quot;pkg:oci/acme-shop@sha256%3Acf9066b0fcef66d545007bd33b5d8d59e7434e37c2a23d19a3075fdb6f0b48b9&quot;
+      },
+      &quot;subcomponents&quot;: [
+        {
+          &quot;@id&quot;: &quot;pkg:maven/org.springframework/spring-beans@5.3.15&quot;,
+          &quot;identifiers&quot;: {
+            &quot;purl&quot;: &quot;pkg:maven/org.springframework/spring-beans@5.3.15&quot;
+          }
+        }
+      ]
+    }
+  ],
+  &quot;status&quot;: &quot;affected&quot;,
+  &quot;action_statement&quot;: &quot;A fix is planned but not yet available.&quot;,
+  &quot;action_statement_timestamp&quot;: &quot;2026-04-08T00:00:00Z&quot;,
+  &quot;status_notes&quot;: &quot;Acme Shop runs as a Spring Boot executable JAR on JDK 17. The published exploit needs a WAR deployment on Apache Tomcat, but Spring advises all users to upgrade.&quot;,
+  &quot;supplier&quot;: &quot;Acme Corp&quot;
+}</code></pre>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Features -->
-    <section class="section bg-alt">
-        <div class="container">
-            <h2 class="section-title">Features</h2>
-            <div class="grid grid-3">
-                <div class="card">
-                    <h3>Git-native workflow</h3>
-                    <p>Vulnerability records live in YAML files in your repository. Review them in PRs, track changes in
-                        git
-                        history, and keep everything close to the code.</p>
+    <section class="band band-sand">
+        <div class="wrap">
+            <div class="center">
+                <h2>Why a file in your repository</h2>
+            </div>
+            <div class="reasons">
+                <div>
+                    <h3>No server, no account</h3>
+                    <p>Vulnlog is a YAML file and tools you run from the command line, in Docker, with Gradle, or in
+                        GitHub Actions.</p>
                 </div>
-                <div class="card">
-                    <h3>VEX-aligned verdicts</h3>
-                    <p>Use standardised verdicts (<code>affected</code>, <code>not affected</code>,
-                        <code>risk acceptable</code>) and VEX justifications to document your analysis.</p>
+                <div>
+                    <h3>Reviewed like code</h3>
+                    <p>You change an analysis in a pull request. Git shows what changed, who changed it, and
+                        when.</p>
                 </div>
-                <div class="card">
-                    <h3>Scanner suppression</h3>
-                    <p>Generate suppression files for Trivy, Snyk, and a generic format directly from your Vulnlog
-                        entries.
-                        Stop maintaining suppression configs by hand.</p>
-                </div>
-                <div class="card">
-                    <h3>Reports for every audience</h3>
-                    <p>Generate an HTML impact report showing what affects the project, and a changelog report listing
-                        which vulnerabilities each release fixed, ready to paste into your release notes.</p>
-                </div>
-                <div class="card">
-                    <h3>Multi-release tracking</h3>
-                    <p>Track vulnerabilities across multiple product releases. Filter by release, tag, or reporter to
-                        get
-                        the view you need.</p>
-                </div>
-                <div class="card">
-                    <h3>Schema validation</h3>
-                    <p>Vulnlog files are validated against a <a href="/schema/vulnlog-v1.json">JSON Schema</a>. Add a
-                        <code>$schema</code>
-                        comment for IDE autocompletion, and catch errors early with <code>vulnlog validate</code> in CI.
-                    </p>
-                </div>
-                <div class="card">
-                    <h3>Runs where you build</h3>
-                    <p>Ship a single binary with no runtime dependencies, or integrate Vulnlog as a Gradle plugin or a
-                        GitHub Action. Also available as a JVM distribution or Docker image.</p>
+                <div>
+                    <h3>Independent of your scanner</h3>
+                    <p>Vulnlog doesn't scan. It works alongside the scanners you have, and stays when you switch.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- CLI example -->
-    <section class="section">
-        <div class="container">
-            <h2 class="section-title">Get started in seconds</h2>
-            <div class="install-grid">
-                <div class="install-option">
-                    <h3>Install Script</h3>
-                    <div class="code-block" id="install-script"></div>
-                    <script id="install-script-src" type="text/plain">
-                        curl -fsSL vulnlog.dev/install | sh
-                    </script>
-                </div>
-                <div class="install-option">
-                    <h3>Homebrew (macOS)</h3>
-                    <div class="code-block" id="install-brew"></div>
-                    <script id="install-brew-src" type="text/plain">
-                        brew install vulnlog/vulnlog/vulnlog
-                    </script>
-                </div>
-                <div class="install-option">
-                    <h3>Docker</h3>
-                    <div class="code-block" id="install-docker"></div>
-                    <script id="install-docker-src" type="text/plain">
-                        docker pull ghcr.io/vulnlog/vulnlog:VULNLOG_VERSION
-                    </script>
-                </div>
-                <div class="install-option">
-                    <h3>GitHub Actions</h3>
-                    <div class="code-block" id="install-action"></div>
-                    <script id="install-action-src" type="text/plain">
-                        - uses: vulnlog/setup-vulnlog@v1
-                          with:
-                            version: VULNLOG_VERSION
-                    </script>
-                </div>
-                <div class="install-option">
-                    <h3>Gradle plugin</h3>
-                    <div class="code-block" id="install-gradle"></div>
-                    <script id="install-gradle-src" type="text/plain">
-                        plugins {
-                            id("dev.vulnlog.plugin") version "VULNLOG_VERSION"
-                        }
-                    </script>
-                </div>
+    <section class="band">
+        <div class="wrap">
+            <div class="center">
+                <h2>Vulnlog uses Vulnlog</h2>
+                <p class="lead">These files are about Vulnlog itself. Vulnlog generates them from the
+                    <a href="https://raw.githubusercontent.com/vulnlog/vulnlog/refs/heads/main/vulnlog.yaml">Vulnlog
+                        file of the project</a>.</p>
             </div>
-            <p class="install-more">Prefer a native binary or JVM distribution? <a href="/docs/">See all installation
-                options</a>.</p>
-            <div class="cli-example">
-                <div class="code-block" id="cli-example"></div>
-                <script id="cli-example-src" type="text/plain">
-                    # Initialize a new Vulnlog file
-                    $ vulnlog init --organization "Acme" --name "Web App" --author "Security Team" -o vulnlog.yaml
-                    Created: vulnlog.yaml
-
-                    # Add a vulnerability finding from the command line
-                    $ vulnlog modify add vulnlog.yaml --vuln-id CVE-2026-1234 --reporter trivy
-                    Added: CVE-2026-1234 to vulnlog.yaml
-
-                    # Validate your Vulnlog files
-                    $ vulnlog validate vulnlog.yaml
-                    Validated: vulnlog.yaml
-
-                    # Generate suppression files for your scanners
-                    $ vulnlog suppress vulnlog.yaml --reporter trivy --as-of 1.0.0
-                    Wrote: .trivyignore.yaml
-
-                    # Generate an HTML vulnerability impact report
-                    $ vulnlog report impact vulnlog.yaml
-                    Wrote: vulnlog-impact-report.html
-
-                    # List what a release fixed, ready for the release notes
-                    $ vulnlog report changelog vulnlog.yaml --fixed-in 1.0.0 --format markdown
-                    ## [1.0.0] - 2026-01-15
-                </script>
+            <div class="own-files">
+                <div>
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><use href="#sheet"/><path d="M19 37v-6M31 37v-8"/><path class="accent" d="M25 37V24"/></svg>
+                    <h3>Reports</h3>
+                    <ul>
+                        <li><a href="/security-report.html">Impact report</a></li>
+                        <li><a href="/security-changelog.txt">Changelog report</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <svg aria-hidden="true" class="pictogram" viewBox="0 0 48 48"><use href="#sheet"/><path class="accent" d="M18.5 30.5l4.5 4.5 8.5-9.5"/></svg>
+                    <h3>OpenVEX documents</h3>
+                    <ul>
+                        <li><a href="/vex/vulnlog-cli.openvex.json">For the CLI</a></li>
+                        <li><a href="/vex/vulnlog-container.openvex.json">For the container</a></li>
+                        <li><a href="/vex/vulnlog-gradle-plugin.openvex.json">For the Gradle plugin</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- CTA -->
-    <section class="cta">
-        <div class="container">
-            <h2>Ready to streamline your vulnerability management?</h2>
-            <p>Vulnlog is free and open source under the Apache 2.0 license.</p>
-            <div class="btn-group">
-                <a class="btn btn-primary btn-lg" href="/docs/">Read the Docs</a>
-                <a class="btn btn-secondary btn-lg" href="https://github.com/vulnlog/vulnlog/releases"
-                   rel="noopener noreferrer"
-                   target="_blank">Download</a>
+    <section class="band band-sea">
+        <div class="wrap center">
+            <h2>Install Vulnlog</h2>
+            <div class="install" data-tabs>
+                <div aria-label="Installation method" class="tabs" hidden role="tablist">
+                    <button aria-controls="install-script" class="tab" role="tab" type="button">Script</button>
+                    <button aria-controls="install-brew" class="tab" role="tab" type="button">Homebrew</button>
+                    <button aria-controls="install-docker" class="tab" role="tab" type="button">Docker</button>
+                    <button aria-controls="install-action" class="tab" role="tab" type="button">GitHub Actions</button>
+                    <button aria-controls="install-gradle" class="tab" role="tab" type="button">Gradle</button>
+                </div>
+                <div class="panel" id="install-script" role="tabpanel">
+                    <div class="panel-title">Install script, on Linux and macOS</div>
+                    <pre><code>curl -fsSL vulnlog.dev/install | sh</code></pre>
+                </div>
+                <div class="panel" id="install-brew" role="tabpanel">
+                    <div class="panel-title">Homebrew, on macOS</div>
+                    <pre><code>brew install vulnlog/vulnlog/vulnlog</code></pre>
+                </div>
+                <div class="panel" id="install-docker" role="tabpanel">
+                    <div class="panel-title">Docker</div>
+                    <pre><code>docker pull ghcr.io/vulnlog/vulnlog:VULNLOG_VERSION</code></pre>
+                </div>
+                <div class="panel" id="install-action" role="tabpanel">
+                    <div class="panel-title">GitHub Actions</div>
+                    <pre><code class="lang-yaml">- name: Set up Vulnlog CLI
+  uses: vulnlog/setup-vulnlog@v1
+  with:
+    version: VULNLOG_VERSION</code></pre>
+                </div>
+                <div class="panel" id="install-gradle" role="tabpanel">
+                    <div class="panel-title">Gradle plugin, in build.gradle.kts</div>
+                    <pre><code>plugins {
+    id("dev.vulnlog.plugin") version "VULNLOG_VERSION"
+}</code></pre>
+                </div>
+            </div>
+            <div class="buttons">
+                <a class="btn" href="/docs/">Read the documentation</a>
             </div>
         </div>
     </section>
 
 </main>
 
-<!-- Footer -->
-<footer class="footer">
-    <div class="container">
-        <div class="footer-grid">
-            <div class="footer-brand">
-                <svg aria-hidden="true" viewBox="0 0 154.64 49.784" width="100px"
-                     xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-                    <defs>
-                        <linearGradient id="flg1">
-                            <stop offset="0" stop-color="#f200cf"/>
-                            <stop offset="1" stop-color="#ff278f"/>
-                        </linearGradient>
-                        <linearGradient gradientTransform="translate(-332.85 -997.27)" gradientUnits="userSpaceOnUse"
-                                        id="flg2" x1="362.33" x2="390.12"
-                                        xlink:href="#flg1" y1="1070.1"
-                                        y2="1070.1"/>
-                        <linearGradient gradientTransform="translate(-332.85 -997.27)" gradientUnits="userSpaceOnUse"
-                                        id="flg3" x1="362.33" x2="390.12"
-                                        xlink:href="#flg1" y1="1070.1"
-                                        y2="1070.1"/>
-                    </defs>
-                    <g stroke-width="5" transform="translate(-29.478 -47.388)">
-                        <path d="m44.734 74.91-4.2824 10.581h6.305l10.516-25.4h-6.5024z" fill="url(#flg2)"/>
-                        <path d="m29.485 60.091 9.0005 21.636 3.1662-7.8238-5.6642-13.812z" fill="url(#flg3)"/>
-                        <path d="m40.045 85.488h6.7056l10.516-25.4h-6.5024l-7.366 18.085-7.4168-18.085h-6.5024z"
-                              fill-opacity="0"/>
-                        <path class="logo-fill"
-                              d="m85.495 47.388v38.1h5.9945v-38.1zm36.763 0v38.1h5.9945v-38.1zm-13.556 12.192c-2.9972 0-5.7401 1.2698-7.6197 3.251v-2.743h-5.9945v25.4h5.9945v-13.716c0-4.0132 2.6925-6.5531 6.1469-6.5531 3.2004 0 5.4353 1.981 5.4353 6.2482v14.021h5.9945v-15.291c0-6.4516-4.0642-10.617-9.957-10.617zm34.833 0c-7.2644 0-13.208 5.8928-13.208 13.208 0 7.2644 5.9436 13.208 13.208 13.208 7.3152 0 13.208-5.9436 13.208-13.208 0-7.3152-5.8928-13.208-13.208-13.208zm26.764 0c-7.2644 0-12.598 5.9436-12.598 13.208s5.3338 13.208 12.598 13.208c3.2004 0 6.1469-1.6761 7.8233-3.7589v3.1492c0 3.81-2.7434 6.0963-7.4678 6.0963-2.4892 0-5.1817-.91466-7.1629-2.5911l-4.1656 4.1656c2.9972 2.7432 7.2135 4.115 11.227 4.115 8.4328 0 13.564-4.6228 13.564-12.192v-24.892h-5.9945v3.1497c-1.6764-1.9812-4.6229-3.6577-7.8233-3.6577zm-111.97.50798v15.291c0 6.4516 4.0637 10.617 9.9565 10.617 2.9972 0 5.7406-1.2698 7.6202-3.251v2.743h5.9945v-25.4h-5.9945v13.716c0 3.9624-2.6925 6.5531-6.1469 6.5531-3.2004 0-5.4353-2.0318-5.4353-6.2482v-14.021zm85.21 5.4865c3.9624 0 7.2135 3.2511 7.2135 7.2135s-3.2511 7.2135-7.2135 7.2135-7.2135-3.2511-7.2135-7.2135 3.2511-7.2135 7.2135-7.2135zm27.374 0c3.9624 0 7.2135 3.2511 7.2135 7.2135s-3.2511 7.2135-7.2135 7.2135-7.214-3.2511-7.214-7.2135 3.2516-7.2135 7.214-7.2135z"/>
-                    </g>
-                </svg>
-                <ul>
-                    <li><a href="https://bsky.app/profile/vulnlog.bsky.social">Bluesky</a></li>
-                    <li><a href="https://infosec.exchange/@vulnlog">Mastodon</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog">GitHub</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4>Start Here</h4>
-                <ul>
-                    <li><a href="/docs/">Documentation</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog/releases">Download</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4>Project</h4>
-                <ul>
-                    <li><a href="https://github.com/vulnlog/vulnlog/blob/main/CHANGELOG.md">Changelog</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog/blob/main/CONTRIBUTING.md">Contributing</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog/blob/main/SECURITY.md">Security policy</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog/blob/main/LICENSE">License</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4>Vulnlog Artifacts</h4>
-                <ul>
-                    <li><a href="/security-report.html">Impact Report</a></li>
-                    <li><a href="/security-changelog.txt">Changelog Report</a></li>
-                    <li><a href="/vex/vulnlog-cli.openvex.json">OpenVEX CLI</a></li>
-                    <li><a href="/vex/vulnlog-container.openvex.json">OpenVEX Container</a></li>
-                    <li><a href="/vex/vulnlog-gradle-plugin.openvex.json">OpenVEX Gradle Plugin</a></li>
-                </ul>
-                <p class="footer-note">Generated by Vulnlog from the project <a
-                        href="https://raw.githubusercontent.com/vulnlog/vulnlog/refs/heads/main/vulnlog.yaml">vulnlog.yaml</a>
-                    file.</p>
-            </div>
-            <div>
-                <h4>Community</h4>
-                <ul>
-                    <li><a href="https://github.com/vulnlog/vulnlog/discussions">Discussions</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog/issues">Report a bug</a></li>
-                    <li><a href="https://github.com/vulnlog/vulnlog/blob/main/SUPPORT.md">Get help</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            &copy; <span id="year"></span> Vulnlog
-        </div>
-    </div>
+<footer class="footer wrap">
+    <a aria-label="Vulnlog home" class="logo" href="/">
+        <svg aria-hidden="true" viewBox="-11.84 0 673.84 200.07"><use href="#logo"/></svg>
+    </a>
+    <ul>
+        <li><a href="/docs/">Documentation</a></li>
+        <li><a href="https://github.com/vulnlog/vulnlog/releases">Download</a></li>
+        <li><a href="https://github.com/vulnlog/vulnlog/blob/main/CHANGELOG.md">Changelog</a></li>
+        <li><a href="https://github.com/vulnlog/vulnlog/blob/main/SECURITY.md">Security policy</a></li>
+        <li><a href="https://github.com/vulnlog/vulnlog/blob/main/LICENSE">Licence</a></li>
+        <li><a href="https://github.com/vulnlog/vulnlog/blob/main/SUPPORT.md">Get help</a></li>
+        <li><a href="https://github.com/vulnlog/vulnlog">GitHub</a></li>
+        <li><a href="https://bsky.app/profile/vulnlog.bsky.social">Bluesky</a></li>
+        <li><a href="https://infosec.exchange/@vulnlog">Mastodon</a></li>
+    </ul>
+    <p class="footer-note">&copy; <span id="year"></span> Vulnlog. Free and open source under the Apache 2.0
+        licence.</p>
 </footer>
 
 <script>
-    // Year
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Mobile menu toggle
-    const toggle = document.querySelector('.navbar-toggle');
-    const menu = document.getElementById('mainMenu');
-    toggle.addEventListener('click', () => {
-        const open = menu.classList.toggle('is-open');
-        toggle.setAttribute('aria-expanded', open);
-    });
-
-    // Theme toggle
+    // Theme switch: system, light, dark. "System" removes the stored choice, so the CSS follows the
+    // system setting again. The button shows the current mode, as in the documentation.
+    const THEMES = ['system', 'light', 'dark'];
+    const root = document.documentElement;
     const themeBtn = document.querySelector('.theme-toggle');
-    const stored = localStorage.getItem('vl-theme');
-    if (stored) document.documentElement.setAttribute('data-theme', stored);
 
-    function syncThemePressed() {
-        const current = document.documentElement.getAttribute('data-theme');
-        const isDark = current === 'dark' ||
-            (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        themeBtn.setAttribute('aria-pressed', String(isDark));
+    function applyTheme(mode) {
+        if (mode === 'system') delete root.dataset.theme;
+        else root.dataset.theme = mode;
+        const next = THEMES[(THEMES.indexOf(mode) + 1) % THEMES.length];
+        themeBtn.dataset.mode = mode;
+        themeBtn.title = `Theme: ${mode}. Switch to ${next}.`;
+        themeBtn.setAttribute('aria-label', themeBtn.title);
     }
 
-    syncThemePressed();
-
+    applyTheme(root.dataset.theme || 'system');
     themeBtn.addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme');
-        const isDark = current === 'dark' ||
-            (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        const next = isDark ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('vl-theme', next);
-        syncThemePressed();
+        const mode = THEMES[(THEMES.indexOf(themeBtn.dataset.mode) + 1) % THEMES.length];
+        try {
+            if (mode === 'system') localStorage.removeItem('vulnlog-theme');
+            else localStorage.setItem('vulnlog-theme', mode);
+        } catch (e) {
+        }
+        applyTheme(mode);
     });
 
-    // Code highlighting
-    function esc(s) {
-        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // YAML highlighting: keys step back, and their colon takes the brand colour.
+    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function highlightYaml(line) {
+        if (/^\s*#/.test(line) || line === '---') return `<span class="c-comment">${esc(line)}</span>`;
+        const m = line.match(/^(\s*(?:- )?)([\w$-]+):(\s.*|)$/);
+        if (!m) return esc(line);
+        return `${esc(m[1])}<span class="c-key">${esc(m[2])}</span><span class="c-colon">:</span>${esc(m[3])}`;
     }
 
-    function span(cls, content) {
-        return '<span class="' + cls + '">' + content + '</span>';
-    }
+    document.querySelectorAll('code.lang-yaml').forEach(code => {
+        code.innerHTML = code.textContent.split('\n').map(highlightYaml).join('\n');
+    });
 
-    function highlightYaml(text) {
-        return text.split('\n').map(function (line) {
-            if (/^\s*#/.test(line)) return span('c-comment', esc(line));
-            // Extract quoted strings first to avoid conflicts with HTML attributes
-            var strings = [];
-            var safe = line.replace(/"([^"]*)"/g, function (m, inner) {
-                strings.push(inner);
-                return '\x00S' + (strings.length - 1) + '\x00';
+    // Tabs. Without JavaScript the tab list stays hidden and every panel is visible.
+    document.querySelectorAll('[data-tabs]').forEach(group => {
+        const tabs = [...group.querySelectorAll('[role="tab"]')];
+        const panelOf = tab => document.getElementById(tab.getAttribute('aria-controls'));
+        const select = tab => tabs.forEach(t => {
+            t.setAttribute('aria-selected', t === tab);
+            t.tabIndex = t === tab ? 0 : -1;
+            panelOf(t).hidden = t !== tab;
+        });
+
+        tabs.forEach((tab, i) => {
+            tab.id = `tab-${tab.getAttribute('aria-controls')}`;
+            panelOf(tab).setAttribute('aria-labelledby', tab.id);
+            tab.addEventListener('click', () => select(tab));
+            tab.addEventListener('keydown', e => {
+                const step = {ArrowRight: 1, ArrowLeft: -1}[e.key];
+                if (!step) return;
+                const next = tabs[(i + step + tabs.length) % tabs.length];
+                select(next);
+                next.focus();
             });
-            safe = esc(safe);
-            safe = safe.replace(/^(\s*)([\w_]+):/, function (m, sp, key) {
-                return sp + span('c-key', key) + ':';
-            });
-            safe = safe.replace(/\b(not affected|affected|risk acceptable)\b/g, function (m) {
-                return span('c-value', m);
-            });
-            // Restore quoted strings
-            safe = safe.replace(/\x00S(\d+)\x00/g, function (m, i) {
-                return span('c-string', '&quot;' + esc(strings[i]) + '&quot;');
-            });
-            return safe;
-        }).join('\n');
-    }
-
-    function highlightCli(text) {
-        return text.split('\n').map(function (line) {
-            if (/^\s*#/.test(line)) return span('c-comment', esc(line));
-            if (/^\$/.test(line)) return span('c-cmd', esc(line));
-            if (line.trim()) return span('c-output', esc(line));
-            return line;
-        }).join('\n');
-    }
-
-    function renderExample(targetId, sourceId, highlighter) {
-        const src = document.getElementById(sourceId);
-        const target = document.getElementById(targetId);
-        if (!src || !target) return;
-        const lines = src.textContent.replace(/^\n/, '').replace(/\n\s*$/, '').split('\n');
-        const indent = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
-        const raw = lines.map(l => l.slice(indent)).join('\n');
-        target.innerHTML = '<code>' + highlighter(raw) + '</code>';
-    }
-
-    function highlightPlain(text) {
-        return esc(text);
-    }
-
-    renderExample('hero-example', 'hero-example-src', highlightYaml);
-    renderExample('cli-example', 'cli-example-src', highlightCli);
-    renderExample('install-script', 'install-script-src', highlightPlain);
-    renderExample('install-brew', 'install-brew-src', highlightPlain);
-    renderExample('install-docker', 'install-docker-src', highlightPlain);
-    renderExample('install-action', 'install-action-src', highlightPlain);
-    renderExample('install-gradle', 'install-gradle-src', highlightPlain);
+        });
+        group.querySelector('[role="tablist"]').hidden = false;
+        group.classList.add('tabs-ready');
+        select(tabs[0]);
+    });
 </script>
 
 </body>

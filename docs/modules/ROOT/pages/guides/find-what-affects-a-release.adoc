@@ -68,7 +68,7 @@ See xref:guides/generate-suppression-files.adoc[Generate suppression files].
 
 == Check the result
 
-* The *About* section of the report shows the release in the *Filter* line, for example `as of=4.3.0`.
+* Below the heading, the report names the release after *Filtered by*, for example `as of=4.3.0`.
 * Pick an _Open_ entry and check it in the Vulnlog file.
 It has no `resolution`, or its `resolution.in` is a later release.
 

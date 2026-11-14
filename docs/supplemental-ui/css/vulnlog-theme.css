@@ -4,27 +4,33 @@
  * color-scheme decides which value of each light-dark() pair applies:
  * - no data-theme attribute: the system setting (prefers-color-scheme), also without JavaScript,
  * - data-theme="light" or "dark": the reader's choice from the header toggle.
- * The light values are the colours of the default UI, so the light theme looks as before.
+ * The colours, fonts, and shapes are the Vulnlog brand. See devdoc/Brand.adoc.
  * Browsers without light-dark() ignore these rules and show the default light UI.
  */
 
 :root {
   color-scheme: light dark;
 
-  --vl-bg: light-dark(#fff, #121417);
-  --vl-surface: light-dark(#fafafa, #1a1d21);
-  --vl-surface-2: light-dark(#f0f0f0, #22262b);
-  --vl-surface-hover: light-dark(#f5f5f5, #2a2f35);
-  --vl-border: light-dark(#e1e1e1, #2e333a);
-  --vl-border-strong: light-dark(#c1c1c1, #3d434b);
-  --vl-text: light-dark(#222, #d6d9de);
-  --vl-text-body: light-dark(#333, #d6d9de);
-  --vl-text-strong: light-dark(#191919, #f1f3f5);
-  --vl-text-muted: light-dark(#5d5d5d, #a3aab4);
-  --vl-text-subtle: light-dark(#8e8e8e, #8a919b);
-  --vl-link: light-dark(#1565c0, #6cb6ff);
-  --vl-link-hover: light-dark(#104d92, #9ccbff);
-  --vl-code-text: light-dark(#222, #e6e8eb);
+  --vl-raspberry: #d32f6a;
+  --vl-sea: light-dark(#e1f0f1, #13282d);
+
+  --vl-bg: light-dark(#fafbfc, #161b22);
+  --vl-surface: light-dark(#f1f3f5, #1e242c);
+  --vl-surface-2: light-dark(#e8ebee, #262d36);
+  --vl-surface-hover: light-dark(#e8ebee, #262d36);
+  --vl-border: light-dark(#d9dee3, #313943);
+  --vl-border-strong: light-dark(#c3cad1, #434d59);
+  --vl-text: light-dark(#1f2630, #e3e8ee);
+  --vl-text-body: light-dark(#1f2630, #e3e8ee);
+  --vl-text-strong: light-dark(#1f2630, #e3e8ee);
+  --vl-text-muted: light-dark(#59636e, #9aa5b1);
+  --vl-text-subtle: light-dark(#59636e, #9aa5b1);
+  --vl-link: var(--vl-raspberry);
+  --vl-link-hover: var(--vl-raspberry);
+  --vl-code-text: light-dark(#1f2630, #e3e8ee);
+
+  --vl-font-sans: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --vl-font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 
 :root[data-theme='light'] {
@@ -78,6 +84,13 @@
 body {
   background: var(--vl-bg);
   color: var(--vl-text);
+  font-family: var(--vl-font-sans);
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--vl-font-mono);
 }
 
 html,
@@ -91,7 +104,7 @@ body * {
 }
 
 .nav {
-  box-shadow: 0.5px 0 3px var(--vl-border-strong);
+  box-shadow: 1px 0 0 var(--vl-border);
 }
 
 .nav-menu h3.title {
@@ -152,7 +165,7 @@ body * {
 
 @media screen and (max-width: 1023.5px) {
   .navbar-menu {
-    background: light-dark(#fff, #1a1d21);
+    background: var(--vl-bg);
   }
 
   .navbar-menu .navbar-item,
@@ -167,7 +180,7 @@ body * {
 }
 
 .navbar-dropdown {
-  background: light-dark(#fff, #1a1d21);
+  background: var(--vl-bg);
   border-color: var(--vl-border);
 }
 
@@ -175,10 +188,14 @@ body * {
   background: var(--vl-surface-hover);
 }
 
-#search-input {
-  background: light-dark(#fff, #121417);
-  border-color: light-dark(#dbdbdb, #3d434b);
+/* search.css loads after this file, so the selector is one level more specific. */
+html #search-input {
+  background: var(--vl-bg);
+  border-color: var(--vl-border-strong);
+  border-radius: 999px;
+  padding-inline: 1rem;
   color: var(--vl-text-body);
+  font-family: inherit;
 }
 
 /* Article */
@@ -196,6 +213,19 @@ body * {
   color: var(--vl-text-strong);
 }
 
+.doc h1,
+.doc h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.doc h3,
+.doc h4,
+.doc h5,
+.doc h6 {
+  font-weight: 600;
+}
+
 .doc h1.sect0 {
   background: var(--vl-surface-2);
 }
@@ -206,12 +236,21 @@ nav.pagination {
   border-color: var(--vl-border);
 }
 
+/* Underlined, because raspberry alone doesn't set a link apart enough in the dark theme. */
 .doc a {
   color: var(--vl-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .doc a:hover {
   color: var(--vl-link-hover);
+  text-decoration-thickness: 2px;
+}
+
+.doc a.anchor,
+nav.pagination a {
+  text-decoration: none;
 }
 
 .doc a.unresolved {
@@ -229,7 +268,8 @@ nav.pagination {
 .doc .literalblock pre,
 .doc pre.highlight > code {
   background: var(--vl-surface);
-  box-shadow: inset 0 0 1.75px var(--vl-border);
+  border-radius: 12px;
+  box-shadow: none;
 }
 
 .doc table.tableblock,
@@ -303,22 +343,35 @@ nav.pagination a::before {
 /* Footer */
 
 footer.footer {
-  background-color: light-dark(#e1e1e1, #1a1d21);
+  background-color: var(--vl-surface);
   color: var(--vl-text-muted);
 }
 
-/* Code highlighting: the default GitHub light colours, and GitHub dark colours */
+/* Code highlighting: the diagram colours of the brand, darker or lighter so code text keeps its contrast */
 
 .hljs-comment,
 .hljs-quote,
-.hljs-meta {
-  color: light-dark(#998, #8b949e);
+.hljs-meta,
+.hljs-attr,
+.hljs-attribute,
+.hljs-name,
+.hljs-tag {
+  color: var(--vl-text-muted);
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
-.hljs-subst {
-  color: light-dark(#333, #ff7b72);
+.hljs-subst,
+.hljs-bullet,
+.hljs-symbol {
+  color: light-dark(#bd2259, #f27ba5);
+}
+
+.hljs-doctag,
+.hljs-string,
+.hljs-link,
+.hljs-regexp {
+  color: light-dark(#17707a, #62c2cb);
 }
 
 .hljs-literal,
@@ -326,60 +379,37 @@ footer.footer {
 .hljs-tag .hljs-attr,
 .hljs-template-variable,
 .hljs-variable {
-  color: light-dark(teal, #79c0ff);
-}
-
-.hljs-doctag,
-.hljs-string {
-  color: light-dark(#d14, #a5d6ff);
+  color: light-dark(#4558b8, #9dabec);
 }
 
 .hljs-section,
 .hljs-selector-id,
 .hljs-title {
-  color: light-dark(#900, #d2a8ff);
+  color: var(--vl-text);
+  font-weight: 500;
 }
 
 .hljs-class .hljs-title,
-.hljs-type {
-  color: light-dark(#458, #ffa657);
-}
-
+.hljs-type,
 .hljs-built_in,
 .hljs-builtin-name {
-  color: light-dark(#0086b3, #ffa657);
-}
-
-.hljs-attribute,
-.hljs-name,
-.hljs-tag {
-  color: light-dark(navy, #7ee787);
-}
-
-.hljs-link,
-.hljs-regexp {
-  color: light-dark(#009926, #a5d6ff);
-}
-
-.hljs-bullet,
-.hljs-symbol {
-  color: light-dark(#990073, #f2cc60);
+  color: light-dark(#4b7a26, #a0cd78);
 }
 
 .hljs-deletion {
-  background: light-dark(#fdd, #490202);
+  background: light-dark(#fbe1dd, #47201a);
 }
 
 .hljs-addition {
-  background: light-dark(#dfd, #04260f);
+  background: light-dark(#dff1e6, #173524);
 }
 
 /* Search results. search.css loads after this file, so these selectors are one level more specific. */
 
 html .search-result-dropdown-menu,
 html .search-result-dataset {
-  background: light-dark(#fff, #1a1d21);
-  border-color: light-dark(#d9d9d9, #3d434b);
+  background: var(--vl-bg);
+  border-color: var(--vl-border-strong);
 }
 
 html .search-result-component-header {
@@ -398,7 +428,7 @@ html .search-result-document-hit {
 
 html .search-result-document-hit .search-result-highlight {
   color: var(--vl-link);
-  background: light-dark(rgb(143 187 237 / 10%), rgb(108 182 255 / 15%));
+  background: color-mix(in srgb, var(--vl-raspberry) 12%, transparent);
 }
 
 html .search-result-document-hit .search-result-section-title {
@@ -439,6 +469,30 @@ html .search-result-document-hit .search-result-section-title {
     clip-path: inset(50%);
     white-space: nowrap;
   }
+}
+
+/* Header: the Sea band of the landing page, with the logo and text in the text colour */
+
+.navbar {
+  background: var(--vl-sea);
+  color: var(--vl-text);
+}
+
+.navbar-brand .navbar-item,
+.navbar-end > .navbar-item,
+.navbar-end .navbar-link {
+  color: var(--vl-text);
+}
+
+.navbar-end > a.navbar-item:hover,
+.navbar-end .navbar-link:hover,
+.navbar-item.vl-theme-toggle:hover {
+  background: color-mix(in srgb, var(--vl-text) 10%, transparent);
+  color: var(--vl-text);
+}
+
+.navbar-burger span {
+  background-color: var(--vl-text);
 }
 
 /* Header: logo, link to the repository, footer */
@@ -497,6 +551,13 @@ html .search-result-document-hit .search-result-section-title {
   text-align: center;
 }
 
+.vl-footer p:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1.5rem;
+}
+
 .vl-footer a {
   color: inherit;
   text-decoration: underline;
@@ -507,10 +568,9 @@ html .search-result-document-hit .search-result-section-title {
 .vl-version-notice {
   margin: 1rem 0 0;
   padding: 0.6rem 1rem;
-  border: 1px solid light-dark(#e0b000, #8a6d00);
-  border-left-width: 4px;
-  border-radius: 3px;
-  background: light-dark(#fff8db, #2b2511);
+  border: 0;
+  border-radius: 12px;
+  background: light-dark(#f5efe3, #1e242c);
   color: var(--vl-text-body);
   font-size: 0.9rem;
 }
@@ -523,7 +583,7 @@ html .search-result-document-hit .search-result-section-title {
 
 .doc .imageblock img {
   border: 1px solid var(--vl-border);
-  border-radius: 3px;
+  border-radius: 12px;
 }
 
 .doc .imageblock.vl-plain img {

@@ -42,34 +42,45 @@ Wrote: vulnlog-impact-report.html
 
 Open `vulnlog-impact-report.html` in your web browser.
 
-image::impact-report.png["The impact report of Acme Shop. The About and Summary boxes are above a table with one row for each of the six vulnerabilities. Select the image to open it in full size.",link=self]
+image::impact-report.png["The impact report of Acme Shop. Two bars with the open entries by severity and all entries by state are above a table with one row for each of the six vulnerabilities. Select the image to open it in full size.",link=self]
 
 The heading names the report and the project: *Vulnerability Impact Report* for *Acme Shop*.
 Below it, you see the organisation, Acme Corp, and the team that maintains the file, the Acme Product Security Team.
 
 == Check what the report covers
 
-The *About* box on the left tells you what you're looking at:
+The line below the team tells you what you're looking at:
 
-* *Generated* is the date and time the report was created, in UTC.
-* *Inputs* is the Vulnlog file the report comes from, `acme-shop.vl.yaml`.
-* *Filter* is `none`.
+* The date and time the report was generated, in your browser's language and time zone.
+* The Vulnlog file the report comes from, `acme-shop.vl.yaml`.
+* _Not filtered_, which means the report shows every entry in the file.
 
-A filter of `none` means the report shows every entry in the file.
-A report can also show the state of one release, for example `as of=4.3.0`.
+A report can also show the state of one release.
+The line then ends with *Filtered by* and the filter, for example `as of=4.3.0`.
 Always check this line before you draw conclusions, because a filtered report leaves entries out.
 
 == Read the summary
 
-The *Summary* box on the right counts the entries:
+Two bars summarise the entries.
+The legend below each bar gives the numbers:
 
-* *Total* is 6 entries.
-* *State* is 1 _Open_, 1 _Investigating_ (the state `under investigation`), 1 _Accepted_, 1 _Resolved_, and 2 _Not applicable_.
-* *Open severity* is 1 _Medium_.
-* *Accepted severity* is 1 _Low_.
+* *Open, by severity* counts the entries that affect Acme Shop and aren't fixed yet, split by severity.
+Here, 1 entry is open, and its severity is _Medium_.
+* *Entries, by state* counts all 6 entries: 1 _Open_, 1 _Investigating_ (the state `under investigation`), 1 _Accepted_, 1 _Resolved_, and 2 _Not applicable_.
 
-Entries in the state `open` affect Acme Shop and aren't fixed yet, so start with them.
-Here, one vulnerability of medium severity is open.
+Select an item in a legend, for example _Open_, to show only those entries in the table.
+Select it again, or select *Clear filters*, to show every entry.
+
+Above the table, three lists narrow it further:
+
+* *Affects* shows the entries that affect one release.
+* *Fixed in* shows the entries fixed in one release.
+* *Disposition* shows the entries the team will fix, won't fix, or hasn't decided on.
+
+The line below the lists says how many entries the table shows.
+*Collapse all* reduces each entry to one line, and *Expand all* shows every entry in full.
+
+Start with the open entries.
 
 == Read the table
 
@@ -81,27 +92,29 @@ Rows for entries `under investigation` and `open` entries without a severity hav
 The four columns are:
 
 * *IDs*: the vulnerability identifier, for example `CVE-2022-22965`, and any other identifiers for the same vulnerability below it.
+Each identifier links to its advisory, for example in the National Vulnerability Database.
 * *State*: where the team stands with the vulnerability.
-* *Details*: the team's assessment.
+* *Details*: the team's assessment in one line, then the description and the analysis.
+A long analysis shows three lines. Select *Show more* to read all of it.
 * *Releases*: the Acme Shop releases the vulnerability affects.
 
 Go through the rows from top to bottom:
 
 * `CVE-2022-22965` is _Open_.
-The *Details* column shows *Verdict* _Affected_, *Severity* _Medium_, and *Disposition* _Will fix_.
+The *Details* column shows _Affected_, _Medium severity_, and _Will fix_.
 The team confirmed that Acme Shop is affected and plans a fix.
 The *Analysis* text explains why the risk is medium.
 * `CVE-2023-32681` is _Investigating_.
 It has a *Description* but no verdict, because the team hasn't finished its analysis.
 Until the team records a verdict, its impact is unknown.
-* `CVE-2021-23337` is _Accepted_, with *Disposition* _Wont fix_.
+* `CVE-2021-23337` is _Accepted_, with _Wont fix_.
 Acme Shop is affected, and the team accepted the risk.
 The *Analysis* says why: only administrators can reach the vulnerable function, and the admin interface goes away in Acme Shop 5.0.
 * `CVE-2021-44228` is _Resolved_.
 Its second identifier, `GHSA-jfh8-c2jp-5v3q`, appears below the CVE.
 The *Releases* column shows 4.2.0 and *Fixed in* 4.3.0.
 * `CVE-2022-42889` and `CVE-2024-3094` are _Not applicable_.
-Their verdict is _Not affected_, and the line in italics under the verdict gives the reason, for example _Vulnerable code not present_.
+Their verdict is _Not affected_, followed by the reason, for example _Vulnerable code not present_.
 
 For the exact meaning of each state, see xref:reference/verdicts-and-justifications.adoc#states[States].
 

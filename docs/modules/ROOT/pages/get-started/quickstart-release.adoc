@@ -45,8 +45,8 @@ The report includes 4.3.0 and every earlier release.
 A fix counts only if it shipped in 4.3.0 or earlier.
 
 Open `acme-shop-4.3.0.html` in your browser.
-Under *About*, the *Filter* line reads `as of=4.3.0`.
-Under *Summary*, the *State* line counts 1 _Open_, 1 _Investigating_ (the state `under investigation`), 1 _Accepted_, 1 _Resolved_, and 2 _Not applicable_.
+The report says *Filtered by* `as of=4.3.0`.
+The *Entries, by state* bar counts 1 _Open_, 1 _Investigating_ (the state `under investigation`), 1 _Accepted_, 1 _Resolved_, and 2 _Not applicable_.
 
 Look at the *State* column of the table:
 

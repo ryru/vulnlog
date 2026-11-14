@@ -198,7 +198,7 @@ class ImpactReportEncoderTest :
 
             val html = render(listOf(untriaged))
 
-            html shouldContain "\"verdict\":null"
+            html.embeddedData() shouldNotContain "\"verdict\""
         }
 
         test("sorts entries by state, then severity") {
