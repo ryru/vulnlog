@@ -157,7 +157,7 @@ class OpenVexStatementsTest :
                     )
             }
 
-            test("an intermediate release the entry does not list gets its statement too") {
+            test("a release the entry does not list gets its statement up to the fix, and none after it") {
                 val file =
                     vulnlogFile(
                         releases =
@@ -177,7 +177,6 @@ class OpenVexStatementsTest :
                         "pkg:maven/com.acme/app@1.0.0" to VexStatusKind.AFFECTED,
                         "pkg:maven/com.acme/app@1.0.5" to VexStatusKind.AFFECTED,
                         "pkg:maven/com.acme/app@1.0.1" to VexStatusKind.FIXED,
-                        "pkg:maven/com.acme/app@1.1.0" to VexStatusKind.FIXED,
                     )
             }
 
@@ -355,6 +354,22 @@ class OpenVexStatementsTest :
                 statement.subcomponents.map { it.value } shouldContainExactly
                     listOf("pkg:npm/alib@1.0.0", "pkg:npm/zlib@1.0.0")
                 statement.status shouldBe VexStatus.UnderInvestigation("not reachable")
+            }
+
+            test("names no subcomponents when fixed, because the fix release no longer ships the vulnerable packages") {
+                val entry =
+                    vulnerability(
+                        id = cve("CVE-2026-1234"),
+                        releases = listOf(release("1.0.0")),
+                        tags = listOf(APP),
+                        packages = listOf(Purl.Npm("pkg:npm/alib@1.0.0")),
+                        resolution = resolution(release = "1.0.0"),
+                    )
+
+                val statement = statementOf(entry)
+
+                statement.status shouldBe VexStatus.Fixed
+                statement.subcomponents.shouldBeEmpty()
             }
 
             test("is left to the revision to date when neither the entry nor its named, unpublished release is dated") {

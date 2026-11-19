@@ -3,8 +3,8 @@
 
 package dev.vulnlog.lib.core.vex.openvex
 
+import dev.vulnlog.lib.core.vex.deriveReleaseVexStatuses
 import dev.vulnlog.lib.core.vex.filterReleasePurlsMatchingVulnerabilityEntryTags
-import dev.vulnlog.lib.core.vex.releaseStatuses
 import dev.vulnlog.lib.core.vex.vexStatusKind
 import dev.vulnlog.lib.model.Purl
 import dev.vulnlog.lib.model.PurlEntry
@@ -14,7 +14,8 @@ import dev.vulnlog.lib.model.Tag
 import dev.vulnlog.lib.model.VulnId
 import dev.vulnlog.lib.model.VulnerabilityEntry
 import dev.vulnlog.lib.model.VulnlogFile
-import dev.vulnlog.lib.model.vex.ReleaseStatus
+import dev.vulnlog.lib.model.vex.ReleaseVexStatus
+import dev.vulnlog.lib.model.vex.VexStatus
 import dev.vulnlog.lib.model.vex.openvex.OpenVexBaseline
 import dev.vulnlog.lib.model.vex.openvex.OpenVexCollection
 import dev.vulnlog.lib.model.vex.openvex.OpenVexEmptyReason
@@ -32,12 +33,12 @@ fun collectOpenVexStatements(
 ): OpenVexCollection {
     val anchors = anchorsOf(vulnlogFile, scope)
     val entries = vulnlogFile.vulnerabilities.filter { vulnEntry -> scope.coversAnyOf(vulnEntry.tags) }
-    val statuses = entries.associateWith { vulnEntry -> releaseStatuses(vulnEntry, vulnlogFile) }
+    val statuses = entries.associateWith { vulnEntry -> deriveReleaseVexStatuses(vulnEntry, vulnlogFile) }
     val matchingPurls = entries.associateWith { vulnEntry -> matchingReleasePurlsOf(vulnEntry, vulnlogFile, scope) }
     val statements =
         statuses
-            .flatMap { (vulnEntry, releaseStatuses) ->
-                statementsOf(vulnEntry, releaseStatuses, matchingPurls.getValue(vulnEntry))
+            .flatMap { (vulnEntry, releaseVexStatuses) ->
+                buildStatements(vulnEntry, releaseVexStatuses, matchingPurls.getValue(vulnEntry))
             }.distinct()
             .sortedWith(
                 compareBy(
@@ -54,8 +55,8 @@ fun collectOpenVexStatements(
         unpublishedReleases = unpublishedReleases(vulnlogFile, scope),
         skippedReleases = skippedReleases(vulnlogFile, scope, statuses.values.flatten(), anchors.keys),
         skippedEntries =
-            statuses.mapNotNull { (vulnEntry, releaseStatuses) ->
-                skippedEntry(vulnEntry, releaseStatuses, anchors.keys, matchingPurls.getValue(vulnEntry).keys)
+            statuses.mapNotNull { (vulnEntry, releaseVexStatuses) ->
+                skippedEntry(vulnEntry, releaseVexStatuses, anchors.keys, matchingPurls.getValue(vulnEntry).keys)
             },
     )
 }
@@ -143,13 +144,14 @@ private fun scopedPurls(
         .map(PurlEntry::purl)
         .sortedBy(Purl::value)
 
-private fun statementsOf(
+/** Builds the entry's statements, one per release status. A release without purls matching the entry gets none. */
+private fun buildStatements(
     vulnEntry: VulnerabilityEntry,
-    releaseStatuses: List<ReleaseStatus>,
+    releaseVexStatuses: List<ReleaseVexStatus>,
     matchingPurls: Map<Release, List<Purl>>,
 ): List<OpenVexStatement> =
-    releaseStatuses.mapNotNull { releaseStatus ->
-        matchingPurls[releaseStatus.release]?.let { products ->
+    releaseVexStatuses.mapNotNull { releaseVexStatus ->
+        matchingPurls[releaseVexStatus.release]?.let { products ->
             OpenVexStatement(
                 vulnerability =
                     OpenVexVulnerability(
@@ -157,12 +159,26 @@ private fun statementsOf(
                         aliases = vulnEntry.aliases.sortedBy(VulnId::id),
                         description = vulnEntry.description,
                     ),
-                timestamp = releaseStatus.since?.let(OpenVexStatementTime::Stated) ?: OpenVexStatementTime.Issued,
+                timestamp = releaseVexStatus.since?.let(OpenVexStatementTime::Stated) ?: OpenVexStatementTime.Issued,
                 products = products,
-                subcomponents = vulnEntry.packages.sortedBy(Purl::value),
-                status = releaseStatus.status,
+                subcomponents = selectSubcomponents(vulnEntry, releaseVexStatus.status),
+                status = releaseVexStatus.status,
             )
         }
+    }
+
+/**
+ * Selects the entry's packages as the subcomponents of a statement, or none for [VexStatus.Fixed]. A fixed statement is
+ * about the whole product, and the fix release usually no longer ships the vulnerable packages.
+ */
+private fun selectSubcomponents(
+    vulnEntry: VulnerabilityEntry,
+    status: VexStatus,
+): List<Purl> =
+    when (status) {
+        VexStatus.Fixed -> emptyList()
+        is VexStatus.Affected, is VexStatus.NotAffected, is VexStatus.UnderInvestigation ->
+            vulnEntry.packages.sortedBy(Purl::value)
     }
 
 private fun unpublishedReleases(
@@ -179,10 +195,10 @@ private fun unpublishedReleases(
 private fun skippedReleases(
     vulnlogFile: VulnlogFile,
     scope: OpenVexScope,
-    releaseStatuses: List<ReleaseStatus>,
+    releaseVexStatuses: List<ReleaseVexStatus>,
     anchoring: Set<Release>,
 ): List<Release> {
-    val covered = releaseStatuses.map(ReleaseStatus::release).toSet()
+    val covered = releaseVexStatuses.map(ReleaseVexStatus::release).toSet()
     return vulnlogFile.releases
         .filter { release -> release.id in covered && scope.covers(release) && release.id !in anchoring }
         .map(ReleaseEntry::id)
@@ -190,14 +206,14 @@ private fun skippedReleases(
 
 private fun skippedEntry(
     vulnEntry: VulnerabilityEntry,
-    releaseStatuses: List<ReleaseStatus>,
+    releaseVexStatuses: List<ReleaseVexStatus>,
     anchoring: Set<Release>,
     withMatchingPurls: Set<Release>,
 ): OpenVexSkippedEntry? =
     when {
-        releaseStatuses.isEmpty() -> OpenVexSkippedEntry.NoRelease(vulnEntry.id)
-        releaseStatuses.none { it.release in anchoring } -> OpenVexSkippedEntry.NoAnchoredRelease(vulnEntry.id)
-        releaseStatuses.any { it.release in withMatchingPurls } -> null
+        releaseVexStatuses.isEmpty() -> OpenVexSkippedEntry.NoRelease(vulnEntry.id)
+        releaseVexStatuses.none { it.release in anchoring } -> OpenVexSkippedEntry.NoAnchoredRelease(vulnEntry.id)
+        releaseVexStatuses.any { it.release in withMatchingPurls } -> null
         vulnEntry.tags.isEmpty() -> OpenVexSkippedEntry.NoTags(vulnEntry.id)
         else -> OpenVexSkippedEntry.NoMatchingReleasePurl(vulnEntry.id)
     }
